@@ -93,39 +93,53 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     }
     
-    // For other users, try to fetch profile or create with default role
+    // For regular users, ensure profile exists in database
+    console.log('Regular user login, ensuring profile exists...');
+    
     try {
-      let { data: profile, error: profileError } = await supabase
+      // First try to get existing profile
+      let { data: profile, error: getError } = await supabase
         .from('profiles')
         .select('*')
         .eq('email', data.user.email)
         .single();
 
-      if (profileError) {
-        // Create profile if it doesn't exist
-        console.log('Creating new profile for user...');
-        const newProfile = {
+      if (getError || !profile) {
+        console.log('Creating user profile in database...');
+        // Create the user profile in the database
+        const newProfileData = {
           id: data.user.id,
           email: data.user.email!,
           full_name: data.user.user_metadata?.full_name || null,
-          role: 'user' as 'admin' | 'member' | 'user'
+          role: 'user'
         };
 
-        const { data: createdProfile } = await supabase
+        const { data: newProfile, error: createError } = await supabase
           .from('profiles')
-          .insert([newProfile])
+          .insert([newProfileData])
           .select()
           .single();
 
-        profile = createdProfile || newProfile;
+        if (createError) {
+          console.error('Failed to create user profile:', createError);
+          // Use hardcoded user as fallback
+          profile = {
+            id: data.user.id,
+            email: data.user.email!,
+            full_name: data.user.user_metadata?.full_name || null,
+            role: 'user'
+          };
+        } else {
+          profile = newProfile;
+        }
       }
 
-      console.log('Login successful, user role:', profile.role);
+      console.log('User profile ready:', profile);
       set({ user: profile, loading: false });
       return profile;
     } catch (error) {
-      console.error('Profile handling failed, using fallback:', error);
-      // Fallback user object
+      console.error('User profile handling failed:', error);
+      // Fallback to hardcoded user
       const fallbackUser = {
         id: data.user.id,
         email: data.user.email!,
