@@ -100,12 +100,15 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   initialize: () => {
     console.log('Auth store initializing...');
+    console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+    console.log('Supabase Key exists:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
     
     // Listen to auth state changes
     supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state change:', event, session?.user?.id);
       try {
         if (session?.user) {
+          console.log('Fetching profile for user:', session.user.id);
           const { data: profile, error } = await supabase
             .from('profiles')
             .select('*')
@@ -129,32 +132,46 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     });
 
-    // Initial check
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.log('Initial session check:', session?.user?.id);
-      try {
-        if (session?.user) {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (error) {
-            console.error('Initial profile fetch error:', error);
-            set({ user: null, loading: false });
-          } else {
-            console.log('Initial profile loaded:', profile);
-            set({ user: profile || null, loading: false });
-          }
-        } else {
-          console.log('No initial session, setting loading to false');
-          set({ loading: false });
+    // Initial check with error handling
+    console.log('Starting initial session check...');
+    supabase.auth.getSession()
+      .then(async ({ data: { session }, error }) => {
+        if (error) {
+          console.error('Session fetch error:', error);
+          set({ user: null, loading: false });
+          return;
         }
-      } catch (error) {
-        console.error('Initial session error:', error);
-        set({ loading: false });
-      }
-    });
+        
+        console.log('Initial session check result:', session?.user?.id || 'No session');
+        
+        try {
+          if (session?.user) {
+            console.log('Fetching initial profile for user:', session.user.id);
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+
+            if (profileError) {
+              console.error('Initial profile fetch error:', profileError);
+              set({ user: null, loading: false });
+            } else {
+              console.log('Initial profile loaded:', profile);
+              set({ user: profile || null, loading: false });
+            }
+          } else {
+            console.log('No initial session, setting loading to false');
+            set({ user: null, loading: false });
+          }
+        } catch (error) {
+          console.error('Initial session processing error:', error);
+          set({ user: null, loading: false });
+        }
+      })
+      .catch((error) => {
+        console.error('Session check failed completely:', error);
+        set({ user: null, loading: false });
+      });
   },
 }));
