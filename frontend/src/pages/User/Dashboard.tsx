@@ -78,7 +78,7 @@ export default function UserDashboard() {
 
       if (error) throw error;
 
-      const formattedResults = data.map(member => ({
+      const formattedResults = data.map((member: any) => ({
         id: member.id,
         name: member.name,
         email: member.email,
@@ -91,7 +91,7 @@ export default function UserDashboard() {
       setSearchResults(formattedResults);
       
       if (formattedResults.length === 0) {
-        toast.info('No records found');
+        toast('No records found');
       } else {
         toast.success(`Found ${formattedResults.length} record(s)`);
       }
