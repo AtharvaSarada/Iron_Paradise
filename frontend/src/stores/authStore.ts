@@ -37,7 +37,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     console.log('Auth successful for user:', data.user.id);
     
     // Quick role-only fetch to get correct role
-    const { data: profile, error: roleError } = await supabase
+    const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', data.user.id)
@@ -93,7 +93,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           console.log('User authenticated, fetching role from database');
           
           // Quick role-only fetch to avoid performance issues
-          const { data: profile, error } = await supabase
+          const { data: profile } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', session.user.id)
