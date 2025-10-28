@@ -110,57 +110,48 @@ export const useAuthStore = create<AuthState>((set) => ({
         if (session?.user) {
           console.log('Fetching profile for user:', session.user.id);
           
-          // Add timeout for profile fetch
-          const profilePromise = supabase
+          // Try direct fetch without timeout first
+          const { data: profile, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
+
+          console.log('Profile fetch result:', { profile, error });
+
+          if (error) {
+            console.error('Profile fetch error details:', {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+              hint: error.hint
+            });
             
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
-          );
-          
-          try {
-            const { data: profile, error } = await Promise.race([profilePromise, timeoutPromise]) as any;
-            
-            if (error) {
-              console.error('Profile fetch error:', error);
+            // If it's an RLS error or permission issue, try with different approach
+            if (error.code === 'PGRST301' || error.message.includes('RLS')) {
+              console.log('RLS policy issue detected, trying alternative approach...');
               
-              // If profile doesn't exist or fetch failed, use fallback
-              if (error.code === 'PGRST116' || error.message === 'Profile fetch timeout') {
-                console.log('Profile not found or timeout, using fallback profile...');
-                const fallbackProfile = {
-                  id: session.user.id,
-                  email: session.user.email!,
-                  full_name: session.user.user_metadata?.full_name || null,
-                  role: 'user' as const
-                };
+              // Try fetching with a more permissive query
+              const { data: profiles, error: listError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('email', session.user.email);
                 
-                console.log('Using fallback profile:', fallbackProfile);
-                set({ user: fallbackProfile, loading: false });
+              console.log('Alternative fetch result:', { profiles, listError });
+              
+              if (profiles && profiles.length > 0) {
+                console.log('Profile found via email lookup:', profiles[0]);
+                set({ user: profiles[0], loading: false });
               } else {
-                console.error('Unexpected profile fetch error:', error);
+                console.error('No profile found even with email lookup');
                 set({ user: null, loading: false });
               }
             } else {
-              console.log('Profile loaded:', profile);
-              set({ user: profile || null, loading: false });
+              set({ user: null, loading: false });
             }
-          } catch (timeoutError) {
-            console.error('Profile fetch timed out, creating new profile...');
-            
-            // Since profile exists in database but fetch timed out, 
-            // let's just create a minimal profile object and proceed
-            const fallbackProfile = {
-              id: session.user.id,
-              email: session.user.email!,
-              full_name: session.user.user_metadata?.full_name || null,
-              role: 'user' as const
-            };
-            
-            console.log('Using fallback profile due to timeout:', fallbackProfile);
-            set({ user: fallbackProfile, loading: false });
+          } else {
+            console.log('Profile loaded successfully:', profile);
+            set({ user: profile, loading: false });
           }
         } else {
           console.log('No session, setting loading to false');
