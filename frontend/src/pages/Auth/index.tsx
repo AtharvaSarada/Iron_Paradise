@@ -24,7 +24,7 @@ export default function AuthPage() {
         navigate('/admin');
       } else {
         await signUp(email, password, fullName);
-        toast.success('Account created! Please check your email to verify.');
+        toast.success('Account created successfully! You can now log in.');
       }
     } catch (error: any) {
       toast.error(error.message || 'Authentication failed');

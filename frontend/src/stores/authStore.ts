@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   signUp: async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -53,6 +53,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
 
     if (error) throw error;
+
+    // Check if email confirmation is required
+    if (data.user && !data.user.email_confirmed_at) {
+      // Email confirmation required - user will need to check email
+      throw new Error('Please check your email and click the confirmation link to complete registration.');
+    }
 
     // Profile will be created automatically by the database trigger
     // No need to manually create it here
