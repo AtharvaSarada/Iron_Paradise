@@ -63,8 +63,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
         if (createError) {
           console.error('Failed to create profile:', createError);
-          // Use default profile if creation fails
-          profile = newProfile;
+          // Use default role if creation fails
+          profile = { role: 'user' };
         } else {
           console.log('Profile created successfully:', createdProfile);
           profile = createdProfile;
@@ -72,12 +72,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       } else if (roleError) {
         console.error('Role fetch error during login:', roleError);
         // Use default role if other error
-        profile = {
-          id: data.user.id,
-          email: data.user.email!,
-          full_name: data.user.user_metadata?.full_name || null,
-          role: 'user'
-        };
+        profile = { role: 'user' };
       }
 
       const user = {
@@ -166,19 +161,14 @@ export const useAuthStore = create<AuthState>((set) => ({
 
               if (createError) {
                 console.error('Failed to create profile in auth state change:', createError);
-                profile = newProfile;
+                profile = { role: 'user' };
               } else {
                 console.log('Profile created in auth state change:', createdProfile);
                 profile = createdProfile;
               }
             } else if (roleError) {
               console.error('Role fetch error in auth state change:', roleError);
-              profile = {
-                id: session.user.id,
-                email: session.user.email!,
-                full_name: session.user.user_metadata?.full_name || null,
-                role: 'user'
-              };
+              profile = { role: 'user' };
             }
 
             const user = {
