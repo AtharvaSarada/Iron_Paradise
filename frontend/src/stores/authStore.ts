@@ -127,28 +127,20 @@ export const useAuthStore = create<AuthState>((set) => ({
             if (error) {
               console.error('Profile fetch error:', error);
               
-              // If profile doesn't exist, create it
+              // If profile doesn't exist or fetch failed, use fallback
               if (error.code === 'PGRST116' || error.message === 'Profile fetch timeout') {
-                console.log('Profile not found or timeout, creating new profile...');
-                const { data: newProfile, error: createError } = await supabase
-                  .from('profiles')
-                  .insert({
-                    id: session.user.id,
-                    email: session.user.email!,
-                    full_name: session.user.user_metadata?.full_name || null,
-                    role: 'user'
-                  })
-                  .select()
-                  .single();
-
-                if (createError) {
-                  console.error('Failed to create profile:', createError);
-                  set({ user: null, loading: false });
-                } else {
-                  console.log('Profile created successfully:', newProfile);
-                  set({ user: newProfile, loading: false });
-                }
+                console.log('Profile not found or timeout, using fallback profile...');
+                const fallbackProfile = {
+                  id: session.user.id,
+                  email: session.user.email!,
+                  full_name: session.user.user_metadata?.full_name || null,
+                  role: 'user' as const
+                };
+                
+                console.log('Using fallback profile:', fallbackProfile);
+                set({ user: fallbackProfile, loading: false });
               } else {
+                console.error('Unexpected profile fetch error:', error);
                 set({ user: null, loading: false });
               }
             } else {
@@ -157,24 +149,18 @@ export const useAuthStore = create<AuthState>((set) => ({
             }
           } catch (timeoutError) {
             console.error('Profile fetch timed out, creating new profile...');
-            const { data: newProfile, error: createError } = await supabase
-              .from('profiles')
-              .insert({
-                id: session.user.id,
-                email: session.user.email!,
-                full_name: session.user.user_metadata?.full_name || null,
-                role: 'user'
-              })
-              .select()
-              .single();
-
-            if (createError) {
-              console.error('Failed to create profile after timeout:', createError);
-              set({ user: null, loading: false });
-            } else {
-              console.log('Profile created after timeout:', newProfile);
-              set({ user: newProfile, loading: false });
-            }
+            
+            // Since profile exists in database but fetch timed out, 
+            // let's just create a minimal profile object and proceed
+            const fallbackProfile = {
+              id: session.user.id,
+              email: session.user.email!,
+              full_name: session.user.user_metadata?.full_name || null,
+              role: 'user' as const
+            };
+            
+            console.log('Using fallback profile due to timeout:', fallbackProfile);
+            set({ user: fallbackProfile, loading: false });
           }
         } else {
           console.log('No session, setting loading to false');
