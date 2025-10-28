@@ -36,32 +36,24 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     console.log('Auth successful for user:', data.user.id);
     
-    // Simple approach: just fetch the profile directly and return it
+    // Fetch the existing profile - profile must exist for login to work
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', data.user.id)
         .single();
 
-      const user = profile || {
-        id: data.user.id,
-        email: data.user.email!,
-        full_name: data.user.user_metadata?.full_name || null,
-        role: 'user' as 'admin' | 'member' | 'user'
-      };
-      
-      console.log('Login successful, user role:', user.role);
-      return user;
-    } catch (profileError) {
-      console.error('Profile fetch failed, using fallback:', profileError);
-      // Return fallback user if profile fetch fails
-      return {
-        id: data.user.id,
-        email: data.user.email!,
-        full_name: data.user.user_metadata?.full_name || null,
-        role: 'user' as 'admin' | 'member' | 'user'
-      };
+      if (profileError) {
+        console.error('Profile not found for user:', data.user.id, profileError);
+        throw new Error('User profile not found. Please contact support or sign up again.');
+      }
+
+      console.log('Login successful, user role:', profile.role);
+      return profile;
+    } catch (error) {
+      console.error('Profile fetch failed during login:', error);
+      throw error;
     }
   },
 
@@ -101,61 +93,28 @@ export const useAuthStore = create<AuthState>((set) => ({
           console.log('User authenticated, fetching role from database');
           
           try {
-            // Try to fetch existing profile
-            let { data: profile, error: roleError } = await supabase
+            // Fetch existing profile - must exist for authenticated users
+            const { data: profile, error: roleError } = await supabase
               .from('profiles')
-              .select('role')
+              .select('*')
               .eq('id', session.user.id)
               .single();
 
-            // If profile doesn't exist, create it
-            if (roleError && roleError.code === 'PGRST116') {
-              console.log('Profile not found in auth state change, creating for user:', session.user.id);
-              
-              const newProfile = {
-                id: session.user.id,
-                email: session.user.email!,
-                full_name: session.user.user_metadata?.full_name || null,
-                role: 'user' as 'admin' | 'member' | 'user'
-              };
-
-              const { data: createdProfile, error: createError } = await supabase
-                .from('profiles')
-                .insert([newProfile])
-                .select()
-                .single();
-
-              if (createError) {
-                console.error('Failed to create profile in auth state change:', createError);
-                profile = { role: 'user' };
-              } else {
-                console.log('Profile created in auth state change:', createdProfile);
-                profile = createdProfile;
-              }
-            } else if (roleError) {
-              console.error('Role fetch error in auth state change:', roleError);
-              profile = { role: 'user' };
+            if (roleError) {
+              console.error('Profile not found in auth state change:', roleError);
+              // If profile doesn't exist, sign out the user
+              await supabase.auth.signOut();
+              set({ user: null, loading: false });
+              return;
             }
 
-            const user = {
-              id: session.user.id,
-              email: session.user.email!,
-              full_name: session.user.user_metadata?.full_name || null,
-              role: (profile?.role || 'user') as 'admin' | 'member' | 'user'
-            };
-            
-            console.log('User profile ready in auth state change:', user);
-            set({ user, loading: false });
+            console.log('User profile loaded in auth state change:', profile);
+            set({ user: profile, loading: false });
           } catch (profileError) {
-            console.error('Profile handling failed in auth state change:', profileError);
-            // Still set user with default role if everything fails
-            const user = {
-              id: session.user.id,
-              email: session.user.email!,
-              full_name: session.user.user_metadata?.full_name || null,
-              role: 'user' as 'admin' | 'member' | 'user'
-            };
-            set({ user, loading: false });
+            console.error('Profile fetch failed in auth state change:', profileError);
+            // If profile fetch fails, sign out the user
+            await supabase.auth.signOut();
+            set({ user: null, loading: false });
           }
         } else {
           console.log('No session, setting loading to false');
@@ -199,10 +158,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
             if (profileError) {
               console.error('Initial profile fetch error:', profileError);
+              // If profile doesn't exist, clear the session
+              await supabase.auth.signOut();
               set({ user: null, loading: false });
             } else {
               console.log('Initial profile loaded:', profile);
-              set({ user: profile || null, loading: false });
+              set({ user: profile, loading: false });
             }
           } else {
             console.log('No initial session, setting loading to false');
