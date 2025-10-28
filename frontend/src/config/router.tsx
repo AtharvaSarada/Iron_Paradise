@@ -1,6 +1,6 @@
-import { lazy, useEffect, useState } from 'react';
+import { lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { supabase } from '@/config/supabase';
+import { useAuthStore } from '@/stores/authStore';
 
 // Lazy load pages
 const AdminDashboard = lazy(() => import('@/pages/Admin/Dashboard'));
@@ -18,29 +18,18 @@ function ProtectedRoute({
   children: React.ReactNode;
   allowedRoles: string[];
 }) {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        setUser(profile);
-      }
-      setLoading(false);
-    });
-  }, []);
+  const { user, loading } = useAuthStore();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-xl text-gray-600">Loading...</div>
+      </div>
+    );
   }
 
   if (!user) {
-    return <AuthPage />;
+    return <Navigate to="/auth" replace />;
   }
 
   if (!allowedRoles.includes(user.role)) {
@@ -65,7 +54,7 @@ function ProtectedRoute({
                   window.location.href = '/member';
                   break;
                 default:
-                  window.location.href = '/packages';
+                  window.location.href = '/user';
               }
             }}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
@@ -82,22 +71,7 @@ function ProtectedRoute({
 
 // Public route component (redirects authenticated users)
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        setUser(profile);
-      }
-      setLoading(false);
-    });
-  }, []);
+  const { user, loading } = useAuthStore();
 
   if (loading) {
     return (
@@ -122,6 +96,9 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
+
+// Lazy load User dashboard
+const UserDashboard = lazy(() => import('@/pages/User/Dashboard'));
 
 export const router = createBrowserRouter([
   {
@@ -165,6 +142,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute allowedRoles={['member']}>
         <MemberBills />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/user',
+    element: (
+      <ProtectedRoute allowedRoles={['user']}>
+        <UserDashboard />
       </ProtectedRoute>
     ),
   },
