@@ -99,8 +99,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   initialize: () => {
+    console.log('Auth store initializing...');
+    
     // Listen to auth state changes
-    supabase.auth.onAuthStateChange(async (_event, session) => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.id);
       try {
         if (session?.user) {
           const { data: profile, error } = await supabase
@@ -113,9 +116,11 @@ export const useAuthStore = create<AuthState>((set) => ({
             console.error('Profile fetch error:', error);
             set({ user: null, loading: false });
           } else {
+            console.log('Profile loaded:', profile);
             set({ user: profile || null, loading: false });
           }
         } else {
+          console.log('No session, setting loading to false');
           set({ user: null, loading: false });
         }
       } catch (error) {
@@ -126,6 +131,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     // Initial check
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.id);
       try {
         if (session?.user) {
           const { data: profile, error } = await supabase
@@ -138,9 +144,11 @@ export const useAuthStore = create<AuthState>((set) => ({
             console.error('Initial profile fetch error:', error);
             set({ user: null, loading: false });
           } else {
+            console.log('Initial profile loaded:', profile);
             set({ user: profile || null, loading: false });
           }
         } else {
+          console.log('No initial session, setting loading to false');
           set({ loading: false });
         }
       } catch (error) {
