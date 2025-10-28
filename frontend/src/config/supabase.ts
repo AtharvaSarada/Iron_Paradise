@@ -28,14 +28,15 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 console.log('Supabase client created successfully');
 
 // Test the connection
-supabase.from('packages').select('count').limit(1)
-  .then(({ data, error }) => {
+(async () => {
+  try {
+    const { data, error } = await supabase.from('packages').select('count').limit(1);
     if (error) {
       console.error('Supabase connection test failed:', error);
     } else {
       console.log('Supabase connection test successful:', data);
     }
-  })
-  .catch((err) => {
+  } catch (err) {
     console.error('Supabase connection test error:', err);
-  });
+  }
+})();
