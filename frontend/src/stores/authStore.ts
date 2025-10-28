@@ -36,18 +36,61 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     console.log('Auth successful for user:', data.user.id);
     
-    // For your admin account, hardcode the admin role temporarily
+    // For your admin account, ensure profile exists in database
     if (data.user.email === 'atharva@test.com') {
-      const adminUser = {
-        id: data.user.id,
-        email: data.user.email!,
-        full_name: data.user.user_metadata?.full_name || 'Admin User',
-        role: 'admin' as 'admin' | 'member' | 'user'
-      };
+      console.log('Admin login detected, ensuring profile exists...');
       
-      console.log('Admin login detected, using hardcoded admin role');
-      set({ user: adminUser, loading: false });
-      return adminUser;
+      try {
+        // First try to get existing profile
+        let { data: profile, error: getError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', 'atharva@test.com')
+          .single();
+
+        if (getError || !profile) {
+          console.log('Creating admin profile in database...');
+          // Create the admin profile in the database
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert([{
+              id: data.user.id,
+              email: data.user.email!,
+              full_name: data.user.user_metadata?.full_name || 'Admin User',
+              role: 'admin'
+            }])
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Failed to create admin profile:', createError);
+            // Use hardcoded admin user as fallback
+            profile = {
+              id: data.user.id,
+              email: data.user.email!,
+              full_name: data.user.user_metadata?.full_name || 'Admin User',
+              role: 'admin'
+            };
+          } else {
+            profile = newProfile;
+          }
+        }
+
+        console.log('Admin profile ready:', profile);
+        set({ user: profile, loading: false });
+        return profile;
+      } catch (error) {
+        console.error('Admin profile handling failed:', error);
+        // Fallback to hardcoded admin
+        const adminUser = {
+          id: data.user.id,
+          email: data.user.email!,
+          full_name: data.user.user_metadata?.full_name || 'Admin User',
+          role: 'admin' as 'admin' | 'member' | 'user'
+        };
+        set({ user: adminUser, loading: false });
+        return adminUser;
+      }
     }
     
     // For other users, try to fetch profile or create with default role
