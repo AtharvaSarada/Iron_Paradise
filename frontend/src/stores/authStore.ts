@@ -111,7 +111,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           role: 'user' as 'admin' | 'member' | 'user'
         };
 
-        const { data: createdProfile, error: createError } = await supabase
+        const { data: createdProfile } = await supabase
           .from('profiles')
           .insert([newProfile])
           .select()
