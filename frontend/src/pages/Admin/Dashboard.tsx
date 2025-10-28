@@ -40,12 +40,12 @@ export default function AdminDashboard() {
           </p>
           
           <div className="mt-6">
-            <a
-              href="/admin/members"
+            <button
+              onClick={() => navigate('/admin/members')}
               className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Manage Members
-            </a>
+            </button>
           </div>
         </div>
       </main>

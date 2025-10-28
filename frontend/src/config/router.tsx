@@ -7,7 +7,7 @@ const AdminDashboard = lazy(() => import('@/pages/Admin/Dashboard').catch(err =>
   console.error('Failed to load AdminDashboard:', err);
   return { default: () => <div>Error loading Admin Dashboard</div> };
 }));
-const AdminMembers = lazy(() => import('@/pages/Admin/MembersSimple'));
+const AdminMembers = lazy(() => import('@/pages/Admin/Members'));
 const MemberDashboard = lazy(() => import('@/pages/Member/Dashboard'));
 const MemberBills = lazy(() => import('@/pages/Member/Bills'));
 const PublicPackages = lazy(() => import('@/pages/Public/Packages'));
