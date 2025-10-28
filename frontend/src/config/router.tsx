@@ -44,7 +44,37 @@ function ProtectedRoute({
   }
 
   if (!allowedRoles.includes(user.role)) {
-    return <div>Access denied</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="text-center p-8">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
+          <p className="text-gray-600 mb-4">
+            You don't have permission to access this area.
+          </p>
+          <p className="text-sm text-gray-500 mb-4">
+            Your role: <span className="font-medium">{user.role}</span>
+          </p>
+          <button
+            onClick={() => {
+              // Redirect based on user role
+              switch (user.role) {
+                case 'admin':
+                  window.location.href = '/admin';
+                  break;
+                case 'member':
+                  window.location.href = '/member';
+                  break;
+                default:
+                  window.location.href = '/packages';
+              }
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Go to Your Dashboard
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;
@@ -84,6 +114,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
         return <Navigate to="/admin" replace />;
       case 'member':
         return <Navigate to="/member" replace />;
+      case 'user':
       default:
         return <Navigate to="/packages" replace />;
     }

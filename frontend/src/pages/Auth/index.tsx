@@ -21,7 +21,19 @@ export default function AuthPage() {
       if (isLogin) {
         await signIn(email, password);
         toast.success('Logged in successfully!');
-        navigate('/admin');
+        
+        // Get the user from the store to determine redirect
+        const { user } = useAuthStore.getState();
+        
+        // Redirect based on user role
+        if (user?.role === 'admin') {
+          navigate('/admin');
+        } else if (user?.role === 'member') {
+          navigate('/member');
+        } else {
+          // Default users go to packages page
+          navigate('/packages');
+        }
       } else {
         await signUp(email, password, fullName);
         toast.success('Account created successfully! You can now log in.');
