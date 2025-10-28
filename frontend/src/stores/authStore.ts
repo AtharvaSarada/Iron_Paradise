@@ -34,45 +34,18 @@ export const useAuthStore = create<AuthState>((set) => ({
       throw error;
     }
 
-    console.log('Auth successful, fetching profile for user:', data.user.id);
-
-    // Get user profile
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
-
-    if (profileError) {
-      console.error('Profile fetch error:', profileError);
-      // If profile doesn't exist, create a basic one
-      if (profileError.code === 'PGRST116') {
-        console.log('Profile not found, creating basic profile...');
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            email: data.user.email!,
-            full_name: data.user.user_metadata?.full_name || null,
-            role: 'user'
-          })
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('Failed to create profile:', createError);
-          throw createError;
-        }
-
-        console.log('Profile created successfully:', newProfile);
-        set({ user: newProfile });
-        return;
-      }
-      throw profileError;
-    }
-
-    console.log('Profile fetched successfully:', profile);
-    set({ user: profile });
+    console.log('Auth successful for user:', data.user.id);
+    
+    // Create user profile from session data instead of database fetch
+    const user = {
+      id: data.user.id,
+      email: data.user.email!,
+      full_name: data.user.user_metadata?.full_name || null,
+      role: 'user' as const
+    };
+    
+    console.log('User profile created:', user);
+    set({ user });
   },
 
   signUp: async (email: string, password: string, fullName: string) => {
@@ -108,51 +81,18 @@ export const useAuthStore = create<AuthState>((set) => ({
       console.log('Auth state change:', event, session?.user?.id);
       try {
         if (session?.user) {
-          console.log('Fetching profile for user:', session.user.id);
+          console.log('User authenticated, creating profile from session data');
           
-          // Try direct fetch without timeout first
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          console.log('Profile fetch result:', { profile, error });
-
-          if (error) {
-            console.error('Profile fetch error details:', {
-              code: error.code,
-              message: error.message,
-              details: error.details,
-              hint: error.hint
-            });
-            
-            // If it's an RLS error or permission issue, try with different approach
-            if (error.code === 'PGRST301' || error.message.includes('RLS')) {
-              console.log('RLS policy issue detected, trying alternative approach...');
-              
-              // Try fetching with a more permissive query
-              const { data: profiles, error: listError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('email', session.user.email);
-                
-              console.log('Alternative fetch result:', { profiles, listError });
-              
-              if (profiles && profiles.length > 0) {
-                console.log('Profile found via email lookup:', profiles[0]);
-                set({ user: profiles[0], loading: false });
-              } else {
-                console.error('No profile found even with email lookup');
-                set({ user: null, loading: false });
-              }
-            } else {
-              set({ user: null, loading: false });
-            }
-          } else {
-            console.log('Profile loaded successfully:', profile);
-            set({ user: profile, loading: false });
-          }
+          // Skip database fetch and create user from session data
+          const user = {
+            id: session.user.id,
+            email: session.user.email!,
+            full_name: session.user.user_metadata?.full_name || null,
+            role: 'user' as const // Default role, can be changed later
+          };
+          
+          console.log('User profile created from session:', user);
+          set({ user, loading: false });
         } else {
           console.log('No session, setting loading to false');
           set({ user: null, loading: false });
