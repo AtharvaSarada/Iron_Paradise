@@ -36,66 +36,32 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     console.log('Auth successful for user:', data.user.id);
     
+    // Simple approach: just fetch the profile directly and return it
     try {
-      // Try to fetch existing profile
-      let { data: profile, error: roleError } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('*')
         .eq('id', data.user.id)
         .single();
 
-      // If profile doesn't exist (404 error), create it
-      if (roleError && roleError.code === 'PGRST116') {
-        console.log('Profile not found, creating new profile for user:', data.user.id);
-        
-        const newProfile = {
-          id: data.user.id,
-          email: data.user.email!,
-          full_name: data.user.user_metadata?.full_name || null,
-          role: 'user' as 'admin' | 'member' | 'user'
-        };
-
-        const { data: createdProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert([newProfile])
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('Failed to create profile:', createError);
-          // Use default role if creation fails
-          profile = { role: 'user' };
-        } else {
-          console.log('Profile created successfully:', createdProfile);
-          profile = createdProfile;
-        }
-      } else if (roleError) {
-        console.error('Role fetch error during login:', roleError);
-        // Use default role if other error
-        profile = { role: 'user' };
-      }
-
-      const user = {
-        id: data.user.id,
-        email: data.user.email!,
-        full_name: data.user.user_metadata?.full_name || null,
-        role: (profile?.role || 'user') as 'admin' | 'member' | 'user'
-      };
-      
-      console.log('User profile ready with role:', user.role);
-      set({ user, loading: false });
-      return user;
-    } catch (error) {
-      console.error('Profile handling failed during login:', error);
-      // Still set user with default role if everything fails
-      const user = {
+      const user = profile || {
         id: data.user.id,
         email: data.user.email!,
         full_name: data.user.user_metadata?.full_name || null,
         role: 'user' as 'admin' | 'member' | 'user'
       };
-      set({ user, loading: false });
+      
+      console.log('Login successful, user role:', user.role);
       return user;
+    } catch (profileError) {
+      console.error('Profile fetch failed, using fallback:', profileError);
+      // Return fallback user if profile fetch fails
+      return {
+        id: data.user.id,
+        email: data.user.email!,
+        full_name: data.user.user_metadata?.full_name || null,
+        role: 'user' as 'admin' | 'member' | 'user'
+      };
     }
   },
 
