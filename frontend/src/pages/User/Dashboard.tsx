@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/config/supabase';
 import { useAuthStore } from '@/stores/authStore';
-import { Search, User, FileText, LogOut, Eye } from 'lucide-react';
+import { Search, User, FileText, LogOut, Eye, Star, Zap, Crown, Shield, Dumbbell, Users } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { SilkBackground } from '@/components/ui/silk-background';
 import toast from 'react-hot-toast';
 
 interface UserProfile {
@@ -22,35 +24,56 @@ interface SearchRecord {
   package_name: string | null;
 }
 
+interface Package {
+  id: string;
+  name: string;
+  duration: string;
+  price: number;
+  features: string[];
+  is_popular: boolean;
+}
+
 export default function UserDashboard() {
   const { user, signOut } = useAuthStore();
   const [userDetails, setUserDetails] = useState<UserProfile | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchRecord[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'search'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'plans' | 'search'>('details');
 
   useEffect(() => {
     if (user) {
       fetchUserDetails();
+      fetchPackages();
     }
   }, [user]);
 
   const fetchUserDetails = async () => {
     if (!user) return;
 
+    // Use user data from auth store instead of database fetch
+    setUserDetails({
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+      created_at: new Date().toISOString() // Fallback date
+    });
+  };
+
+  const fetchPackages = async () => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('packages')
         .select('*')
-        .eq('id', user.id)
-        .single();
+        .order('price', { ascending: true });
 
       if (error) throw error;
-      setUserDetails(data);
+      setPackages(data || []);
     } catch (error: any) {
-      console.error('Error fetching user details:', error);
-      toast.error('Failed to load user details');
+      console.error('Error fetching packages:', error);
+      toast.error('Failed to load membership plans');
     }
   };
 
@@ -120,234 +143,390 @@ export default function UserDashboard() {
     });
   };
 
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(price);
+  };
+
+  const getDurationLabel = (duration: string) => {
+    const labels: { [key: string]: string } = {
+      'monthly': 'per month',
+      'quarterly': 'per quarter',
+      'yearly': 'per year',
+      'weekly': 'per week'
+    };
+    return labels[duration.toLowerCase()] || `per ${duration}`;
+  };
+
+  const getPackageIcon = (index: number) => {
+    const icons = [Shield, Zap, Crown];
+    const Icon = icons[index % icons.length];
+    return Icon;
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">User Dashboard</h1>
-              <p className="text-gray-600">Welcome, {user?.full_name || user?.email}</p>
+    <div className="min-h-screen">
+      {/* Hero Section with Silk Background */}
+      <SilkBackground className="min-h-screen">
+        {/* Header */}
+        <div className="relative z-20 bg-white/10 backdrop-blur-sm border-b border-white/20">
+          <div className="max-w-7xl mx-auto px-4 py-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-2xl font-bold text-white">Iron Paradise</h1>
+                <p className="text-white/80">Welcome, {user?.full_name || user?.email}</p>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors border border-white/30"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </button>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Navigation Tabs */}
-        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-8 w-fit">
-          <button
-            onClick={() => setActiveTab('details')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
-              activeTab === 'details'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
+        {/* Hero Content */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 py-16">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-16"
           >
-            <Eye className="w-4 h-4" />
-            View Details
-          </button>
-          <button
-            onClick={() => setActiveTab('search')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
-              activeTab === 'search'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Search className="w-4 h-4" />
-            Search Records
-          </button>
-        </div>
-
-        {/* View Details Tab */}
-        {activeTab === 'details' && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <User className="w-6 h-6 text-blue-600" />
-              <h2 className="text-xl font-semibold text-gray-900">Your Details</h2>
+            <div className="flex items-center justify-center mb-6">
+              <div className="bg-white/20 backdrop-blur-sm p-4 rounded-full border border-white/30">
+                <Dumbbell className="w-12 h-12 text-white" />
+              </div>
             </div>
+            <h2 className="text-5xl font-bold text-white mb-6">
+              Transform Your Body,<br />
+              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Transform Your Life
+              </span>
+            </h2>
+            <p className="text-xl text-white/80 max-w-2xl mx-auto mb-8">
+              Join Iron Paradise and discover the perfect membership plan that fits your fitness journey. 
+              From beginners to professionals, we have something for everyone.
+            </p>
+            <div className="flex items-center justify-center gap-8 text-white/60">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                <span>500+ Members</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5" />
+                <span>4.9 Rating</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                <span>Certified Trainers</span>
+              </div>
+            </div>
+          </motion.div>
 
-            {userDetails ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Full Name
-                    </label>
-                    <div className="bg-gray-50 px-3 py-2 rounded-md">
-                      {userDetails.full_name || 'Not provided'}
-                    </div>
-                  </div>
+          {/* Navigation Tabs */}
+          <div className="flex justify-center mb-12">
+            <div className="flex space-x-1 bg-white/10 backdrop-blur-sm p-1 rounded-lg border border-white/20">
+              <button
+                onClick={() => setActiveTab('details')}
+                className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-all ${
+                  activeTab === 'details'
+                    ? 'bg-white text-purple-600 shadow-lg'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Eye className="w-4 h-4" />
+                Your Details
+              </button>
+              <button
+                onClick={() => setActiveTab('plans')}
+                className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-all ${
+                  activeTab === 'plans'
+                    ? 'bg-white text-purple-600 shadow-lg'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Star className="w-4 h-4" />
+                Membership Plans
+              </button>
+              <button
+                onClick={() => setActiveTab('search')}
+                className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-all ${
+                  activeTab === 'search'
+                    ? 'bg-white text-purple-600 shadow-lg'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Search className="w-4 h-4" />
+                Search Records
+              </button>
+            </div>
+          </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email Address
-                    </label>
-                    <div className="bg-gray-50 px-3 py-2 rounded-md">
-                      {userDetails.email}
-                    </div>
-                  </div>
+          {/* Content Sections */}
+          <div className="max-w-6xl mx-auto">
+            {/* Your Details Tab */}
+            {activeTab === 'details' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20"
+              >
+                <div className="flex items-center gap-3 mb-8">
+                  <User className="w-8 h-8 text-white" />
+                  <h3 className="text-2xl font-bold text-white">Your Profile</h3>
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Account Type
-                    </label>
-                    <div className="bg-gray-50 px-3 py-2 rounded-md">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {userDetails.role.toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
+                {userDetails ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium text-white/80 mb-2">
+                          Full Name
+                        </label>
+                        <div className="bg-white/10 backdrop-blur-sm px-4 py-3 rounded-lg border border-white/20 text-white">
+                          {userDetails.full_name || 'Not provided'}
+                        </div>
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Member Since
-                    </label>
-                    <div className="bg-gray-50 px-3 py-2 rounded-md">
-                      {formatDate(userDetails.created_at)}
+                      <div>
+                        <label className="block text-sm font-medium text-white/80 mb-2">
+                          Email Address
+                        </label>
+                        <div className="bg-white/10 backdrop-blur-sm px-4 py-3 rounded-lg border border-white/20 text-white">
+                          {userDetails.email}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium text-white/80 mb-2">
+                          Account Type
+                        </label>
+                        <div className="bg-white/10 backdrop-blur-sm px-4 py-3 rounded-lg border border-white/20">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                            {userDetails.role.toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-white/80 mb-2">
+                          Member Since
+                        </label>
+                        <div className="bg-white/10 backdrop-blur-sm px-4 py-3 rounded-lg border border-white/20 text-white">
+                          {formatDate(userDetails.created_at)}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <div className="text-gray-500">Loading your details...</div>
-              </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-white/60">Loading your details...</div>
+                  </div>
+                )}
+              </motion.div>
             )}
-          </div>
-        )}
 
-        {/* Search Records Tab */}
-        {activeTab === 'search' && (
-          <div className="space-y-6">
-            {/* Search Form */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Search className="w-6 h-6 text-blue-600" />
-                <h2 className="text-xl font-semibold text-gray-900">Search Records</h2>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by name, email, or phone number..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  />
-                </div>
-                <button
-                  onClick={handleSearch}
-                  disabled={loading}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Searching...' : 'Search'}
-                </button>
-              </div>
-            </div>
-
-            {/* Search Results */}
-            {searchResults.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Search Results ({searchResults.length})
-                  </h3>
+            {/* Membership Plans Tab */}
+            {activeTab === 'plans' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="space-y-8"
+              >
+                <div className="text-center mb-12">
+                  <h3 className="text-3xl font-bold text-white mb-4">Choose Your Plan</h3>
+                  <p className="text-white/80 text-lg">Select the perfect membership that fits your fitness goals</p>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Name
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Email
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Phone
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Join Date
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Package
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {searchResults.map((record) => (
-                        <tr key={record.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                <User className="w-4 h-4 text-blue-600" />
-                              </div>
-                              <div className="ml-3">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {record.name}
-                                </div>
-                              </div>
+                {packages.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-white/60">Loading membership plans...</div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {packages.map((pkg, index) => {
+                      const Icon = getPackageIcon(index);
+                      return (
+                        <motion.div
+                          key={pkg.id}
+                          initial={{ opacity: 0, y: 30 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className={`relative bg-white/10 backdrop-blur-sm rounded-2xl p-8 border transition-all duration-300 hover:scale-105 hover:bg-white/15 ${
+                            pkg.is_popular 
+                              ? 'border-purple-400 ring-2 ring-purple-400/50' 
+                              : 'border-white/20 hover:border-white/40'
+                          }`}
+                        >
+                          {pkg.is_popular && (
+                            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                              <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                                Most Popular
+                              </span>
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {record.email}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {record.phone || 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatDate(record.join_date)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {record.package_name}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              record.status === 'active'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}>
-                              {record.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                          )}
+
+                          <div className="text-center mb-6">
+                            <div className="bg-white/20 backdrop-blur-sm p-3 rounded-full w-fit mx-auto mb-4">
+                              <Icon className="w-8 h-8 text-white" />
+                            </div>
+                            <h4 className="text-2xl font-bold text-white mb-2">{pkg.name}</h4>
+                            <div className="flex items-center justify-center">
+                              <span className="text-4xl font-bold text-white">
+                                {formatPrice(pkg.price)}
+                              </span>
+                              <span className="text-white/60 ml-2">
+                                {getDurationLabel(pkg.duration)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3 mb-8">
+                            {pkg.features.map((feature, featureIndex) => (
+                              <div key={featureIndex} className="flex items-center">
+                                <div className="bg-green-500/20 rounded-full p-1 mr-3">
+                                  <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                                <span className="text-white/90">{feature}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <button
+                            onClick={() => toast.success('Contact admin to upgrade your plan!')}
+                            className={`w-full py-3 px-6 rounded-lg font-semibold transition-all duration-200 ${
+                              pkg.is_popular
+                                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-lg hover:shadow-xl'
+                                : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/30'
+                            }`}
+                          >
+                            <Zap className="inline w-4 h-4 mr-2" />
+                            Choose Plan
+                          </button>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
             )}
 
-            {searchResults.length === 0 && searchQuery && !loading && (
-              <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Found</h3>
-                <p className="text-gray-600">
-                  No records match your search criteria. Try different keywords.
-                </p>
-              </div>
+            {/* Search Records Tab */}
+            {activeTab === 'search' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="space-y-6"
+              >
+                {/* Search Form */}
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Search className="w-8 h-8 text-white" />
+                    <h3 className="text-2xl font-bold text-white">Search Records</h3>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search by name, email, or phone number..."
+                        className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-white/60"
+                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                      />
+                    </div>
+                    <button
+                      onClick={handleSearch}
+                      disabled={loading}
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-3 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                    >
+                      {loading ? 'Searching...' : 'Search'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search Results */}
+                {searchResults.length > 0 && (
+                  <div className="bg-white/10 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/20">
+                    <div className="px-8 py-6 border-b border-white/20">
+                      <h4 className="text-xl font-bold text-white">
+                        Search Results ({searchResults.length})
+                      </h4>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead className="bg-white/5">
+                          <tr>
+                            <th className="px-6 py-4 text-left text-sm font-medium text-white/80 uppercase tracking-wider">Name</th>
+                            <th className="px-6 py-4 text-left text-sm font-medium text-white/80 uppercase tracking-wider">Email</th>
+                            <th className="px-6 py-4 text-left text-sm font-medium text-white/80 uppercase tracking-wider">Phone</th>
+                            <th className="px-6 py-4 text-left text-sm font-medium text-white/80 uppercase tracking-wider">Join Date</th>
+                            <th className="px-6 py-4 text-left text-sm font-medium text-white/80 uppercase tracking-wider">Package</th>
+                            <th className="px-6 py-4 text-left text-sm font-medium text-white/80 uppercase tracking-wider">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/10">
+                          {searchResults.map((record) => (
+                            <tr key={record.id} className="hover:bg-white/5 transition-colors">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center">
+                                    <User className="w-4 h-4 text-purple-400" />
+                                  </div>
+                                  <div className="ml-3">
+                                    <div className="text-sm font-medium text-white">{record.name}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-white/80">{record.email}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-white/80">{record.phone || 'N/A'}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-white/80">{formatDate(record.join_date)}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-white/80">{record.package_name}</td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                  record.status === 'active'
+                                    ? 'bg-green-500/20 text-green-400'
+                                    : 'bg-red-500/20 text-red-400'
+                                }`}>
+                                  {record.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {searchResults.length === 0 && searchQuery && !loading && (
+                  <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-12 text-center border border-white/20">
+                    <FileText className="w-16 h-16 text-white/40 mx-auto mb-4" />
+                    <h4 className="text-xl font-bold text-white mb-2">No Results Found</h4>
+                    <p className="text-white/60">
+                      No records match your search criteria. Try different keywords.
+                    </p>
+                  </div>
+                )}
+              </motion.div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      </SilkBackground>
     </div>
   );
 }
