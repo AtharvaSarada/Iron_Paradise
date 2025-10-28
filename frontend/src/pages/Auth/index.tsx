@@ -19,16 +19,13 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
-        await signIn(email, password);
+        const user = await signIn(email, password);
         toast.success('Logged in successfully!');
         
-        // Get the user from the store to determine redirect
-        const { user } = useAuthStore.getState();
-        
         // Redirect based on user role
-        if (user?.role === 'admin') {
+        if (user.role === 'admin') {
           navigate('/admin');
-        } else if (user?.role === 'member') {
+        } else if (user.role === 'member') {
           navigate('/member');
         } else {
           // Default users go to user dashboard

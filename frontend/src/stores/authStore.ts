@@ -11,7 +11,7 @@ interface User {
 interface AuthState {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<User>;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
   initialize: () => void;
@@ -60,6 +60,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       
       console.log('User profile created with correct role:', user);
       set({ user, loading: false });
+      return user;
     } catch (error) {
       console.error('Profile fetch failed during login:', error);
       // Still set user with default role if profile fetch fails
@@ -70,6 +71,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         role: 'user' as 'admin' | 'member' | 'user'
       };
       set({ user, loading: false });
+      return user;
     }
   },
 
