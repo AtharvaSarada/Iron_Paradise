@@ -3,7 +3,10 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 
 // Lazy load pages
-const AdminDashboard = lazy(() => import('@/pages/Admin/Dashboard'));
+const AdminDashboard = lazy(() => import('@/pages/Admin/Dashboard').catch(err => {
+  console.error('Failed to load AdminDashboard:', err);
+  return { default: () => <div>Error loading Admin Dashboard</div> };
+}));
 const AdminMembers = lazy(() => import('@/pages/Admin/MembersSimple'));
 const MemberDashboard = lazy(() => import('@/pages/Member/Dashboard'));
 const MemberBills = lazy(() => import('@/pages/Member/Bills'));
@@ -21,6 +24,8 @@ function ProtectedRoute({
 }) {
   const { user, loading } = useAuthStore();
 
+  console.log('ProtectedRoute - User:', user, 'Loading:', loading, 'Allowed roles:', allowedRoles);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -30,10 +35,12 @@ function ProtectedRoute({
   }
 
   if (!user) {
+    console.log('No user, redirecting to auth');
     return <Navigate to="/auth" replace />;
   }
 
   if (!allowedRoles.includes(user.role)) {
+    console.log('Access denied - User role:', user.role, 'Required roles:', allowedRoles);
     return (
       <div className="min-h-screen flex items-center justify-center bg-red-50">
         <div className="text-center p-8">
@@ -43,6 +50,9 @@ function ProtectedRoute({
           </p>
           <p className="text-sm text-gray-500 mb-4">
             Your role: <span className="font-medium">{user.role}</span>
+          </p>
+          <p className="text-sm text-gray-500 mb-4">
+            Required roles: <span className="font-medium">{allowedRoles.join(', ')}</span>
           </p>
           <button
             onClick={() => {
@@ -67,6 +77,7 @@ function ProtectedRoute({
     );
   }
 
+  console.log('Access granted - rendering admin dashboard');
   return <>{children}</>;
 }
 
