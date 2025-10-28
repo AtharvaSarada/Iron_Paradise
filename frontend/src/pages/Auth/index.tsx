@@ -31,8 +31,8 @@ export default function AuthPage() {
         } else if (user?.role === 'member') {
           navigate('/member');
         } else {
-          // Default users go to packages page
-          navigate('/packages');
+          // Default users go to user dashboard
+          navigate('/user');
         }
       } else {
         await signUp(email, password, fullName);

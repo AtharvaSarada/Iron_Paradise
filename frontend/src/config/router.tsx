@@ -116,7 +116,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
         return <Navigate to="/member" replace />;
       case 'user':
       default:
-        return <Navigate to="/packages" replace />;
+        return <Navigate to="/user" replace />;
     }
   }
 
