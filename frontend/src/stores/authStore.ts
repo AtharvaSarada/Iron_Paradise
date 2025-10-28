@@ -109,18 +109,72 @@ export const useAuthStore = create<AuthState>((set) => ({
       try {
         if (session?.user) {
           console.log('Fetching profile for user:', session.user.id);
-          const { data: profile, error } = await supabase
+          
+          // Add timeout for profile fetch
+          const profilePromise = supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
+            
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
+          );
+          
+          try {
+            const { data: profile, error } = await Promise.race([profilePromise, timeoutPromise]) as any;
+            
+            if (error) {
+              console.error('Profile fetch error:', error);
+              
+              // If profile doesn't exist, create it
+              if (error.code === 'PGRST116' || error.message === 'Profile fetch timeout') {
+                console.log('Profile not found or timeout, creating new profile...');
+                const { data: newProfile, error: createError } = await supabase
+                  .from('profiles')
+                  .insert({
+                    id: session.user.id,
+                    email: session.user.email!,
+                    full_name: session.user.user_metadata?.full_name || null,
+                    role: 'user'
+                  })
+                  .select()
+                  .single();
 
-          if (error) {
-            console.error('Profile fetch error:', error);
-            set({ user: null, loading: false });
-          } else {
-            console.log('Profile loaded:', profile);
-            set({ user: profile || null, loading: false });
+                if (createError) {
+                  console.error('Failed to create profile:', createError);
+                  set({ user: null, loading: false });
+                } else {
+                  console.log('Profile created successfully:', newProfile);
+                  set({ user: newProfile, loading: false });
+                }
+              } else {
+                set({ user: null, loading: false });
+              }
+            } else {
+              console.log('Profile loaded:', profile);
+              set({ user: profile || null, loading: false });
+            }
+          } catch (timeoutError) {
+            console.error('Profile fetch timed out, creating new profile...');
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert({
+                id: session.user.id,
+                email: session.user.email!,
+                full_name: session.user.user_metadata?.full_name || null,
+                role: 'user'
+              })
+              .select()
+              .single();
+
+            if (createError) {
+              console.error('Failed to create profile after timeout:', createError);
+              set({ user: null, loading: false });
+            } else {
+              console.log('Profile created after timeout:', newProfile);
+              set({ user: newProfile, loading: false });
+            }
           }
         } else {
           console.log('No session, setting loading to false');
