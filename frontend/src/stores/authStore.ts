@@ -36,25 +36,41 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     console.log('Auth successful for user:', data.user.id);
     
-    // Quick role-only fetch to get correct role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', data.user.id)
-      .single();
+    try {
+      // Quick role-only fetch to get correct role
+      const { data: profile, error: roleError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
 
-    const userRole = profile?.role || 'user';
-    console.log('User role fetched during login:', userRole);
-    
-    const user = {
-      id: data.user.id,
-      email: data.user.email!,
-      full_name: data.user.user_metadata?.full_name || null,
-      role: userRole as 'admin' | 'member' | 'user'
-    };
-    
-    console.log('User profile created with correct role:', user);
-    set({ user });
+      if (roleError) {
+        console.error('Role fetch error during login:', roleError);
+      }
+
+      const userRole = profile?.role || 'user';
+      console.log('User role fetched during login:', userRole);
+      
+      const user = {
+        id: data.user.id,
+        email: data.user.email!,
+        full_name: data.user.user_metadata?.full_name || null,
+        role: userRole as 'admin' | 'member' | 'user'
+      };
+      
+      console.log('User profile created with correct role:', user);
+      set({ user, loading: false });
+    } catch (error) {
+      console.error('Profile fetch failed during login:', error);
+      // Still set user with default role if profile fetch fails
+      const user = {
+        id: data.user.id,
+        email: data.user.email!,
+        full_name: data.user.user_metadata?.full_name || null,
+        role: 'user' as 'admin' | 'member' | 'user'
+      };
+      set({ user, loading: false });
+    }
   },
 
   signUp: async (email: string, password: string, fullName: string) => {
@@ -92,25 +108,41 @@ export const useAuthStore = create<AuthState>((set) => ({
         if (session?.user) {
           console.log('User authenticated, fetching role from database');
           
-          // Quick role-only fetch to avoid performance issues
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
+          try {
+            // Quick role-only fetch to avoid performance issues
+            const { data: profile, error: roleError } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', session.user.id)
+              .single();
 
-          const userRole = profile?.role || 'user';
-          console.log('User role fetched:', userRole);
-          
-          const user = {
-            id: session.user.id,
-            email: session.user.email!,
-            full_name: session.user.user_metadata?.full_name || null,
-            role: userRole as 'admin' | 'member' | 'user'
-          };
-          
-          console.log('User profile created with correct role:', user);
-          set({ user, loading: false });
+            if (roleError) {
+              console.error('Role fetch error in auth state change:', roleError);
+            }
+
+            const userRole = profile?.role || 'user';
+            console.log('User role fetched:', userRole);
+            
+            const user = {
+              id: session.user.id,
+              email: session.user.email!,
+              full_name: session.user.user_metadata?.full_name || null,
+              role: userRole as 'admin' | 'member' | 'user'
+            };
+            
+            console.log('User profile created with correct role:', user);
+            set({ user, loading: false });
+          } catch (profileError) {
+            console.error('Profile fetch failed in auth state change:', profileError);
+            // Still set user with default role if profile fetch fails
+            const user = {
+              id: session.user.id,
+              email: session.user.email!,
+              full_name: session.user.user_metadata?.full_name || null,
+              role: 'user' as 'admin' | 'member' | 'user'
+            };
+            set({ user, loading: false });
+          }
         } else {
           console.log('No session, setting loading to false');
           set({ user: null, loading: false });
