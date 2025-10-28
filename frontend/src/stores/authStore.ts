@@ -36,15 +36,24 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     console.log('Auth successful for user:', data.user.id);
     
-    // Create user profile from session data instead of database fetch
+    // Quick role-only fetch to get correct role
+    const { data: profile, error: roleError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single();
+
+    const userRole = profile?.role || 'user';
+    console.log('User role fetched during login:', userRole);
+    
     const user = {
       id: data.user.id,
       email: data.user.email!,
       full_name: data.user.user_metadata?.full_name || null,
-      role: 'user' as const
+      role: userRole as 'admin' | 'member' | 'user'
     };
     
-    console.log('User profile created:', user);
+    console.log('User profile created with correct role:', user);
     set({ user });
   },
 
@@ -81,17 +90,26 @@ export const useAuthStore = create<AuthState>((set) => ({
       console.log('Auth state change:', event, session?.user?.id);
       try {
         if (session?.user) {
-          console.log('User authenticated, creating profile from session data');
+          console.log('User authenticated, fetching role from database');
           
-          // Skip database fetch and create user from session data
+          // Quick role-only fetch to avoid performance issues
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+
+          const userRole = profile?.role || 'user';
+          console.log('User role fetched:', userRole);
+          
           const user = {
             id: session.user.id,
             email: session.user.email!,
             full_name: session.user.user_metadata?.full_name || null,
-            role: 'user' as const // Default role, can be changed later
+            role: userRole as 'admin' | 'member' | 'user'
           };
           
-          console.log('User profile created from session:', user);
+          console.log('User profile created with correct role:', user);
           set({ user, loading: false });
         } else {
           console.log('No session, setting loading to false');
