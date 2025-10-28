@@ -1,0 +1,737 @@
+openapi: 3.0.3
+info:
+  title: Iron Paradise Gym Management API
+  description: API contracts for gym management system using Supabase
+  version: 1.0.0
+  contact:
+    name: Iron Paradise Development
+
+servers:
+  - url: https://your-project.supabase.co
+    description: Supabase API server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /rest/v1/profiles:
+    get:
+      summary: Get user profile
+      description: Get current user's profile information
+      responses:
+        '200':
+          description: Profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+
+  /rest/v1/members:
+    get:
+      summary: Get all members
+      description: Retrieve members (filtered by role)
+      parameters:
+        - name: select
+          in: query
+          schema:
+            type: string
+            default: "*"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Members retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Member'
+    post:
+      summary: Create member
+      description: Add new gym member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberInput'
+      responses:
+        '201':
+          description: Member created
+
+  /rest/v1/members/{id}:
+    get:
+      summary: Get member by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Member found
+    patch:
+      summary: Update member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberUpdate'
+      responses:
+        '200':
+          description: Member updated
+    delete:
+      summary: Delete member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Member deleted
+
+  /rest/v1/packages:
+    get:
+      summary: Get packages
+      responses:
+        '200':
+          description: Packages retrieved
+    post:
+      summary: Create package
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackageInput'
+      responses:
+        '201':
+          description: Package created
+
+  /rest/v1/packages/{id}:
+    patch:
+      summary: Update package
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackageUpdate'
+      responses:
+        '200':
+          description: Package updated
+    delete:
+      summary: Delete package
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Package deleted
+
+  /rest/v1/bills:
+    get:
+      summary: Get bills
+      description: Get bills for current member or all bills (admin)
+      responses:
+        '200':
+          description: Bills retrieved
+    post:
+      summary: Create bill
+      description: Generate bill for member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillInput'
+      responses:
+        '201':
+          description: Bill created
+
+  /rest/v1/bills/{id}:
+    patch:
+      summary: Update bill
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillUpdate'
+      responses:
+        '200':
+          description: Bill updated
+
+  /rest/v1/notifications:
+    get:
+      summary: Get notifications
+      description: Get all notifications with read status
+      responses:
+        '200':
+          description: Notifications retrieved
+    post:
+      summary: Create notification
+      description: Send notification to members
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationInput'
+      responses:
+        '201':
+          description: Notification created
+
+  /rest/v1/notification_reads:
+    post:
+      summary: Mark notification as read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationReadInput'
+      responses:
+        '201':
+          description: Notification marked as read
+
+  /rest/v1/supplements:
+    get:
+      summary: Get supplements
+      responses:
+        '200':
+          description: Supplements retrieved
+    post:
+      summary: Create supplement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplementInput'
+      responses:
+        '201':
+          description: Supplement created
+
+  /rest/v1/supplements/{id}:
+    patch:
+      summary: Update supplement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplementUpdate'
+      responses:
+        '200':
+          description: Supplement updated
+    delete:
+      summary: Delete supplement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Supplement deleted
+
+  /rest/v1/diets:
+    get:
+      summary: Get diets
+      responses:
+        '200':
+          description: Diets retrieved
+    post:
+      summary: Create diet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DietInput'
+      responses:
+        '201':
+          description: Diet created
+
+  /rest/v1/diets/{id}:
+    patch:
+      summary: Update diet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DietUpdate'
+      responses:
+        '200':
+          description: Diet updated
+    delete:
+      summary: Delete diet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Diet deleted
+
+  /rest/v1/diet_assignments:
+    get:
+      summary: Get diet assignments
+      responses:
+        '200':
+          description: Assignments retrieved
+    post:
+      summary: Assign diet to member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DietAssignmentInput'
+      responses:
+        '201':
+          description: Diet assigned
+    delete:
+      summary: Unassign diet
+      parameters:
+        - name: diet_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: member_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Diet unassigned
+
+  /rest/v1/activity_logs:
+    get:
+      summary: Get activity logs
+      description: Get logs (admin only)
+      responses:
+        '200':
+          description: Logs retrieved
+    post:
+      summary: Create log entry
+      description: Log user action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogInput'
+      responses:
+        '201':
+          description: Log created
+
+  /auth/v1/signup:
+    post:
+      summary: User registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthInput'
+      responses:
+        '200':
+          description: User registered
+
+  /auth/v1/signin:
+    post:
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthInput'
+      responses:
+        '200':
+          description: User logged in
+
+  /storage/v1/object/member-photos/{filename}:
+    post:
+      summary: Upload member photo
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: File uploaded
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        full_name:
+          type: string
+        role:
+          type: string
+          enum: [admin, member, user]
+        created_at:
+          type: string
+          format: date-time
+
+    Member:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        photo_url:
+          type: string
+        emergency_contact:
+          type: string
+        join_date:
+          type: string
+          format: date
+        package_id:
+          type: string
+          format: uuid
+        membership_expiry:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [active, inactive]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MemberInput:
+      type: object
+      required: [name, email]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        photo_url:
+          type: string
+        emergency_contact:
+          type: string
+        package_id:
+          type: string
+          format: uuid
+
+    MemberUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        photo_url:
+          type: string
+        emergency_contact:
+          type: string
+        package_id:
+          type: string
+          format: uuid
+        membership_expiry:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [active, inactive]
+
+    PackageInput:
+      type: object
+      required: [name, duration, price, features]
+      properties:
+        name:
+          type: string
+        duration:
+          type: string
+        price:
+          type: number
+        features:
+          type: array
+          items:
+            type: string
+        is_popular:
+          type: boolean
+          default: false
+
+    PackageUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        duration:
+          type: string
+        price:
+          type: number
+        features:
+          type: array
+          items:
+            type: string
+        is_popular:
+          type: boolean
+
+    BillInput:
+      type: object
+      required: [member_id, amount, due_date, package_name]
+      properties:
+        member_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        due_date:
+          type: string
+          format: date
+        package_name:
+          type: string
+        description:
+          type: string
+
+    BillUpdate:
+      type: object
+      properties:
+        amount:
+          type: number
+        due_date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [paid, pending, overdue]
+        description:
+          type: string
+
+    NotificationInput:
+      type: object
+      required: [title, message]
+      properties:
+        title:
+          type: string
+        message:
+          type: string
+        priority:
+          type: string
+          enum: [low, normal, high]
+          default: normal
+
+    NotificationReadInput:
+      type: object
+      required: [notification_id]
+      properties:
+        notification_id:
+          type: string
+          format: uuid
+
+    SupplementInput:
+      type: object
+      required: [name, price, stock_level]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        stock_level:
+          type: integer
+        image_url:
+          type: string
+        category:
+          type: string
+
+    SupplementUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        stock_level:
+          type: integer
+        image_url:
+          type: string
+        category:
+          type: string
+
+    DietInput:
+      type: object
+      required: [name, meals, total_calories]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        meals:
+          type: array
+          items:
+            type: object
+            properties:
+              time:
+                type: string
+              name:
+                type: string
+              calories:
+                type: integer
+        total_calories:
+          type: integer
+
+    DietUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        meals:
+          type: array
+          items:
+            type: object
+        total_calories:
+          type: integer
+
+    DietAssignmentInput:
+      type: object
+      required: [diet_id, member_id]
+      properties:
+        diet_id:
+          type: string
+          format: uuid
+        member_id:
+          type: string
+          format: uuid
+
+    LogInput:
+      type: object
+      required: [action_type]
+      properties:
+        action_type:
+          type: string
+        details:
+          type: object
+        ip_address:
+          type: string
+
+    AuthInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
