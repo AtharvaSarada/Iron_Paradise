@@ -132,10 +132,19 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     });
 
-    // Initial check with error handling
+    // Initial check with timeout and better error handling
     console.log('Starting initial session check...');
+    
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.log('Session check timeout - setting loading to false');
+      set({ user: null, loading: false });
+    }, 5000); // 5 second timeout
+    
     supabase.auth.getSession()
       .then(async ({ data: { session }, error }) => {
+        clearTimeout(timeoutId);
+        
         if (error) {
           console.error('Session fetch error:', error);
           set({ user: null, loading: false });
@@ -170,6 +179,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
       })
       .catch((error) => {
+        clearTimeout(timeoutId);
         console.error('Session check failed completely:', error);
         set({ user: null, loading: false });
       });

@@ -6,7 +6,8 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 console.log('Supabase config check:', {
   url: supabaseUrl,
   keyExists: !!supabaseKey,
-  keyLength: supabaseKey?.length
+  keyLength: supabaseKey?.length,
+  fullUrl: `${supabaseUrl}/auth/v1/session`
 });
 
 if (!supabaseUrl || !supabaseKey) {
@@ -25,3 +26,16 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 });
 
 console.log('Supabase client created successfully');
+
+// Test the connection
+supabase.from('packages').select('count').limit(1)
+  .then(({ data, error }) => {
+    if (error) {
+      console.error('Supabase connection test failed:', error);
+    } else {
+      console.log('Supabase connection test successful:', data);
+    }
+  })
+  .catch((err) => {
+    console.error('Supabase connection test error:', err);
+  });
