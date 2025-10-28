@@ -22,12 +22,19 @@ export const useAuthStore = create<AuthState>((set) => ({
   loading: true,
 
   signIn: async (email: string, password: string) => {
+    console.log('Starting sign in process...');
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Auth sign in error:', error);
+      throw error;
+    }
+
+    console.log('Auth successful, fetching profile for user:', data.user.id);
 
     // Get user profile
     const { data: profile, error: profileError } = await supabase
@@ -36,8 +43,35 @@ export const useAuthStore = create<AuthState>((set) => ({
       .eq('id', data.user.id)
       .single();
 
-    if (profileError) throw profileError;
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      // If profile doesn't exist, create a basic one
+      if (profileError.code === 'PGRST116') {
+        console.log('Profile not found, creating basic profile...');
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            email: data.user.email!,
+            full_name: data.user.user_metadata?.full_name || null,
+            role: 'user'
+          })
+          .select()
+          .single();
 
+        if (createError) {
+          console.error('Failed to create profile:', createError);
+          throw createError;
+        }
+
+        console.log('Profile created successfully:', newProfile);
+        set({ user: newProfile });
+        return;
+      }
+      throw profileError;
+    }
+
+    console.log('Profile fetched successfully:', profile);
     set({ user: profile });
   },
 
