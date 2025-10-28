@@ -91,8 +91,9 @@ export const dropdownMenu = {
 };
 
 // Intersection observer hook setup for scroll animations
-export const useIntersectionObserver = (threshold = 0.1) => {
+export const useIntersectionObserver = (_threshold = 0.1) => {
   // This would be implemented with useEffect and IntersectionObserver
   // For now, return default values
+  // TODO: Implement actual intersection observer functionality
   return { ref: null, inView: true };
 };
