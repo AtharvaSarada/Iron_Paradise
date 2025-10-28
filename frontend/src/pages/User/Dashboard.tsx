@@ -171,16 +171,16 @@ export default function UserDashboard() {
       {/* Hero Section with Silk Background */}
       <SilkBackground className="min-h-screen">
         {/* Header */}
-        <div className="relative z-20 bg-black/40 backdrop-blur-md border-b border-purple-500/30">
+        <div className="relative z-20 bg-black/60 border-b border-purple-500/30">
           <div className="max-w-7xl mx-auto px-4 py-4">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-2xl font-bold text-white drop-shadow-lg">Iron Paradise</h1>
+                <h1 className="text-2xl font-bold text-white">Iron Paradise</h1>
                 <p className="text-purple-200">Welcome, {user?.full_name || user?.email}</p>
               </div>
               <button
                 onClick={handleSignOut}
-                className="flex items-center gap-2 bg-red-600/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors border border-red-500/50 shadow-lg"
+                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
                 Sign Out
@@ -198,17 +198,17 @@ export default function UserDashboard() {
             className="text-center mb-16"
           >
             <div className="flex items-center justify-center mb-6">
-              <div className="bg-purple-600/30 backdrop-blur-sm p-4 rounded-full border border-purple-400/50 shadow-2xl">
-                <Dumbbell className="w-12 h-12 text-white drop-shadow-lg" />
+              <div className="bg-purple-600/40 p-4 rounded-full">
+                <Dumbbell className="w-12 h-12 text-white" />
               </div>
             </div>
-            <h2 className="text-5xl font-bold text-white mb-6 drop-shadow-2xl">
+            <h2 className="text-5xl font-bold text-white mb-6">
               Transform Your Body,<br />
-              <span className="bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
+              <span className="text-purple-300">
                 Transform Your Life
               </span>
             </h2>
-            <p className="text-xl text-gray-200 max-w-2xl mx-auto mb-8 drop-shadow-lg">
+            <p className="text-xl text-gray-200 max-w-2xl mx-auto mb-8">
               Join Iron Paradise and discover the perfect membership plan that fits your fitness journey. 
               From beginners to professionals, we have something for everyone.
             </p>
@@ -230,12 +230,12 @@ export default function UserDashboard() {
 
           {/* Navigation Tabs */}
           <div className="flex justify-center mb-12">
-            <div className="flex space-x-1 bg-black/40 backdrop-blur-md p-1 rounded-lg border border-purple-500/30 shadow-2xl">
+            <div className="flex space-x-1 bg-black/50 p-1 rounded-lg border border-purple-500/30">
               <button
                 onClick={() => setActiveTab('details')}
-                className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-all ${
+                className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-colors ${
                   activeTab === 'details'
-                    ? 'bg-purple-600 text-white shadow-lg'
+                    ? 'bg-purple-600 text-white'
                     : 'text-purple-200 hover:text-white hover:bg-purple-600/30'
                 }`}
               >
@@ -244,9 +244,9 @@ export default function UserDashboard() {
               </button>
               <button
                 onClick={() => setActiveTab('plans')}
-                className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-all ${
+                className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-colors ${
                   activeTab === 'plans'
-                    ? 'bg-purple-600 text-white shadow-lg'
+                    ? 'bg-purple-600 text-white'
                     : 'text-purple-200 hover:text-white hover:bg-purple-600/30'
                 }`}
               >
@@ -255,9 +255,9 @@ export default function UserDashboard() {
               </button>
               <button
                 onClick={() => setActiveTab('search')}
-                className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-all ${
+                className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-colors ${
                   activeTab === 'search'
-                    ? 'bg-purple-600 text-white shadow-lg'
+                    ? 'bg-purple-600 text-white'
                     : 'text-purple-200 hover:text-white hover:bg-purple-600/30'
                 }`}
               >
@@ -275,7 +275,7 @@ export default function UserDashboard() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-black/50 backdrop-blur-md rounded-2xl p-8 border border-purple-500/30 shadow-2xl"
+                className="bg-black/60 rounded-2xl p-8 border border-purple-500/30"
               >
                 <div className="flex items-center gap-3 mb-8">
                   <User className="w-8 h-8 text-white" />
@@ -289,7 +289,7 @@ export default function UserDashboard() {
                         <label className="block text-sm font-medium text-purple-200 mb-2">
                           Full Name
                         </label>
-                        <div className="bg-gray-800/50 backdrop-blur-sm px-4 py-3 rounded-lg border border-purple-500/30 text-white">
+                        <div className="bg-gray-800/60 px-4 py-3 rounded-lg border border-purple-500/30 text-white">
                           {userDetails.full_name || 'Not provided'}
                         </div>
                       </div>
@@ -298,7 +298,7 @@ export default function UserDashboard() {
                         <label className="block text-sm font-medium text-purple-200 mb-2">
                           Email Address
                         </label>
-                        <div className="bg-gray-800/50 backdrop-blur-sm px-4 py-3 rounded-lg border border-purple-500/30 text-white">
+                        <div className="bg-gray-800/60 px-4 py-3 rounded-lg border border-purple-500/30 text-white">
                           {userDetails.email}
                         </div>
                       </div>
@@ -309,8 +309,8 @@ export default function UserDashboard() {
                         <label className="block text-sm font-medium text-purple-200 mb-2">
                           Account Type
                         </label>
-                        <div className="bg-gray-800/50 backdrop-blur-sm px-4 py-3 rounded-lg border border-purple-500/30">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+                        <div className="bg-gray-800/60 px-4 py-3 rounded-lg border border-purple-500/30">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-600 text-white">
                             {userDetails.role.toUpperCase()}
                           </span>
                         </div>
@@ -320,7 +320,7 @@ export default function UserDashboard() {
                         <label className="block text-sm font-medium text-purple-200 mb-2">
                           Member Since
                         </label>
-                        <div className="bg-gray-800/50 backdrop-blur-sm px-4 py-3 rounded-lg border border-purple-500/30 text-white">
+                        <div className="bg-gray-800/60 px-4 py-3 rounded-lg border border-purple-500/30 text-white">
                           {formatDate(userDetails.created_at)}
                         </div>
                       </div>
@@ -361,9 +361,9 @@ export default function UserDashboard() {
                           initial={{ opacity: 0, y: 30 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className={`relative bg-gray-900/70 backdrop-blur-md rounded-2xl p-8 border transition-all duration-300 hover:scale-105 hover:bg-gray-800/70 ${
+                          className={`relative bg-gray-900/80 rounded-2xl p-8 border transition-colors hover:bg-gray-800/80 ${
                             pkg.is_popular 
-                              ? 'border-purple-400 ring-2 ring-purple-400/50 shadow-2xl shadow-purple-500/20' 
+                              ? 'border-purple-400 ring-2 ring-purple-400/50' 
                               : 'border-purple-500/30 hover:border-purple-400/50'
                           }`}
                         >
@@ -376,7 +376,7 @@ export default function UserDashboard() {
                           )}
 
                           <div className="text-center mb-6">
-                            <div className="bg-purple-600/30 backdrop-blur-sm p-3 rounded-full w-fit mx-auto mb-4 border border-purple-400/50">
+                            <div className="bg-purple-600/40 p-3 rounded-full w-fit mx-auto mb-4">
                               <Icon className="w-8 h-8 text-purple-200" />
                             </div>
                             <h4 className="text-2xl font-bold text-white mb-2">{pkg.name}</h4>
