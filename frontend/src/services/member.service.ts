@@ -31,57 +31,7 @@ export interface CreateMemberInput {
   status?: 'active' | 'inactive';
 }
 
-// Sample data for when database is unavailable
-const sampleMembers: Member[] = [
-  {
-    id: '1',
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 234 567 8900',
-    address: '123 Main St, City, State 12345',
-    emergency_contact: '+1 234 567 8901',
-    join_date: '2024-10-15',
-    status: 'active',
-    created_at: '2024-10-15T10:00:00Z',
-    updated_at: '2024-10-15T10:00:00Z'
-  },
-  {
-    id: '2',
-    name: 'Jane Smith',
-    email: 'jane.smith@example.com',
-    phone: '+1 234 567 8902',
-    address: '456 Oak Ave, City, State 12345',
-    emergency_contact: '+1 234 567 8903',
-    join_date: '2024-10-20',
-    status: 'active',
-    created_at: '2024-10-20T10:00:00Z',
-    updated_at: '2024-10-20T10:00:00Z'
-  },
-  {
-    id: '3',
-    name: 'Mike Johnson',
-    email: 'mike.johnson@example.com',
-    phone: '+1 234 567 8904',
-    address: '789 Pine St, City, State 12345',
-    emergency_contact: '+1 234 567 8905',
-    join_date: '2024-10-25',
-    status: 'inactive',
-    created_at: '2024-10-25T10:00:00Z',
-    updated_at: '2024-10-25T10:00:00Z'
-  },
-  {
-    id: '4',
-    name: 'Sarah Wilson',
-    email: 'sarah.wilson@example.com',
-    phone: '+1 234 567 8906',
-    address: '321 Elm St, City, State 12345',
-    emergency_contact: '+1 234 567 8907',
-    join_date: '2024-10-28',
-    status: 'active',
-    created_at: '2024-10-28T10:00:00Z',
-    updated_at: '2024-10-28T10:00:00Z'
-  }
-];
+
 
 // Test function to check Supabase connectivity
 const testSupabaseConnection = async () => {
@@ -158,13 +108,12 @@ export const memberService = {
             return membersFromDirect;
           } else {
             console.error('Direct API call failed:', response.status, response.statusText);
+            throw new Error(`Direct API call failed: ${response.status} ${response.statusText}`);
           }
         } catch (directError) {
           console.error('Direct API call error:', directError);
+          throw new Error(`All connection methods failed: ${directError}`);
         }
-        
-        console.log('All connection methods failed, using sample data');
-        return sampleMembers;
       }
       
       // Try to fetch profiles data using Supabase client
@@ -181,8 +130,7 @@ export const memberService = {
           details: profilesError.details,
           hint: profilesError.hint
         });
-        console.log('Using sample data due to fetch error');
-        return sampleMembers;
+        throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
       }
 
       if (profilesData && profilesData.length > 0) {
@@ -206,13 +154,12 @@ export const memberService = {
         return membersFromProfiles;
       }
 
-      console.log('No profiles data found, using sample data');
-      return sampleMembers;
+      console.log('No profiles data found');
+      return [];
       
     } catch (error) {
       console.error('Complete failure fetching members:', error);
-      console.log('Using sample data as final fallback');
-      return sampleMembers;
+      throw error;
     }
   },
 
@@ -296,19 +243,8 @@ export const memberService = {
       await logAction(LOG_ACTIONS.MEMBER_UPDATED, { member_id: id });
       return data;
     } catch (error) {
-      console.error('Update member failed, database unavailable:', error);
-      // Return a mock updated member
-      const mockMember: Member = {
-        id,
-        name: input.name || 'Updated Member',
-        email: input.email || 'updated@example.com',
-        join_date: input.join_date || new Date().toISOString().split('T')[0],
-        status: input.status || 'active',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        ...input
-      };
-      return mockMember;
+      console.error('Update member failed:', error);
+      throw error;
     }
   },
 
@@ -322,9 +258,8 @@ export const memberService = {
       if (error) throw error;
       await logAction(LOG_ACTIONS.MEMBER_DELETED, { member_id: id });
     } catch (error) {
-      console.error('Delete member failed, database unavailable:', error);
-      // For demo purposes, we'll just log the deletion
-      console.log(`Member ${id} would be deleted (database unavailable)`);
+      console.error('Delete member failed:', error);
+      throw error;
     }
   },
 
