@@ -83,54 +83,85 @@ const sampleMembers: Member[] = [
   }
 ];
 
+// Test function to check Supabase connectivity
+const testSupabaseConnection = async () => {
+  try {
+    console.log('Testing Supabase connection...');
+    
+    // Test 1: Simple auth check
+    const { data: session } = await supabase.auth.getSession();
+    console.log('Auth session test:', !!session);
+    
+    // Test 2: Try to access a simple table
+    const { data, error, count } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true });
+    
+    console.log('Profiles table test:', { 
+      success: !error, 
+      error: error?.message,
+      count 
+    });
+    
+    return !error;
+  } catch (err) {
+    console.error('Supabase connection test failed:', err);
+    return false;
+  }
+};
+
 export const memberService = {
   async getAll(): Promise<Member[]> {
     try {
-      console.log('Fetching real members from Supabase profiles table...');
+      console.log('Fetching real members from Supabase...');
       
-      // First try to get from members table
-      let { data: membersData } = await supabase
-        .from('members')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (membersData && membersData.length > 0) {
-        console.log('Found members in members table:', membersData.length);
-        return membersData;
+      // First test the connection
+      const connectionOk = await testSupabaseConnection();
+      if (!connectionOk) {
+        console.log('Connection test failed, using sample data');
+        return sampleMembers;
       }
-
-      // If no members table data, try profiles table (where your real users are)
-      console.log('No data in members table, fetching from profiles table...');
+      
+      // Try to fetch profiles data
+      console.log('Attempting to fetch from profiles table...');
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, email, full_name, role, created_at')
         .order('created_at', { ascending: false });
 
       if (profilesError) {
         console.error('Profiles fetch error:', profilesError);
-        throw profilesError;
+        console.log('RLS might be blocking access, using sample data');
+        return sampleMembers;
       }
 
-      // Convert profiles to member format
-      const membersFromProfiles: Member[] = (profilesData || []).map(profile => ({
-        id: profile.id,
-        user_id: profile.id,
-        name: profile.full_name || profile.email.split('@')[0],
-        email: profile.email,
-        phone: profile.phone || '',
-        address: profile.address || '',
-        emergency_contact: profile.emergency_contact || '',
-        join_date: profile.created_at ? profile.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-        status: 'active' as 'active' | 'inactive',
-        created_at: profile.created_at || new Date().toISOString(),
-        updated_at: profile.created_at || new Date().toISOString()
-      }));
+      if (profilesData && profilesData.length > 0) {
+        console.log('Successfully fetched profiles:', profilesData.length);
+        
+        // Convert profiles to member format
+        const membersFromProfiles: Member[] = profilesData.map(profile => ({
+          id: profile.id,
+          user_id: profile.id,
+          name: profile.full_name || profile.email?.split('@')[0] || 'Unknown User',
+          email: profile.email || 'no-email@example.com',
+          phone: '',
+          address: '',
+          emergency_contact: '',
+          join_date: profile.created_at ? profile.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+          status: 'active' as 'active' | 'inactive',
+          created_at: profile.created_at || new Date().toISOString(),
+          updated_at: profile.created_at || new Date().toISOString()
+        }));
 
-      console.log('Successfully converted profiles to members:', membersFromProfiles.length);
-      return membersFromProfiles;
+        return membersFromProfiles;
+      }
+
+      console.log('No profiles data found, using sample data');
+      return sampleMembers;
+      
     } catch (error) {
-      console.error('Failed to fetch real members:', error);
-      console.log('Falling back to sample data');
+      console.error('Complete failure fetching members:', error);
+      console.log('Using sample data as final fallback');
       return sampleMembers;
     }
   },
