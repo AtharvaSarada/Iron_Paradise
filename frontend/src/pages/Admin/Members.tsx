@@ -16,29 +16,24 @@ export default function AdminMembers() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
   const loadMembers = async () => {
-    console.log('Loading members...');
+    console.log('Loading members from Supabase...');
     try {
       setLoading(true);
       setError(null);
       
-      // Add timeout
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), 10000)
-      );
+      const data = await memberService.getAll();
       
-      const data = await Promise.race([
-        memberService.getAll(),
-        timeoutPromise
-      ]) as Member[];
-      
-      console.log('Members loaded:', data);
+      console.log('Members loaded successfully:', data.length);
       setMembers(data);
+      
+      if (data.length === 0) {
+        toast('No members found in database', { icon: 'ℹ️' });
+      }
     } catch (error: any) {
       console.error('Load members error:', error);
       setError(error.message || 'Failed to load members');
       toast.error('Failed to load members: ' + (error.message || 'Unknown error'));
     } finally {
-      console.log('Setting loading to false');
       setLoading(false);
     }
   };

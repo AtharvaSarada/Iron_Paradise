@@ -33,133 +33,48 @@ export interface CreateMemberInput {
 
 
 
-// Test function to check Supabase connectivity
-const testSupabaseConnection = async () => {
-  try {
-    console.log('Testing Supabase connection...');
-    console.log('Environment check:', {
-      url: import.meta.env.VITE_SUPABASE_URL,
-      keyExists: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
-      keyLength: import.meta.env.VITE_SUPABASE_ANON_KEY?.length
-    });
-    
-    // Test 1: Simple auth check
-    const { data: session } = await supabase.auth.getSession();
-    console.log('Auth session test:', !!session);
-    
-    // Test 2: Try to access profiles table with minimal query
-    const { error, count } = await supabase
-      .from('profiles')
-      .select('id', { count: 'exact', head: true });
-    
-    console.log('Profiles table test:', { 
-      success: !error, 
-      error: error?.message,
-      errorCode: error?.code,
-      errorDetails: error?.details,
-      count 
-    });
-    
-    return !error;
-  } catch (err) {
-    console.error('Supabase connection test failed:', err);
-    return false;
-  }
-};
-
 export const memberService = {
   async getAll(): Promise<Member[]> {
+    console.log('Fetching members from Supabase profiles table...');
+    
     try {
-      console.log('Fetching real members from Supabase...');
-      
-      // First test the connection
-      const connectionOk = await testSupabaseConnection();
-      if (!connectionOk) {
-        console.log('Connection test failed, trying direct API approach...');
-        
-        // Try direct REST API call as backup
-        try {
-          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?select=id,email,full_name,role,created_at&order=created_at.desc`, {
-            headers: {
-              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (response.ok) {
-            const directData = await response.json();
-            console.log('Direct API call successful:', directData.length);
-            
-            const membersFromDirect: Member[] = directData.map((profile: any) => ({
-              id: profile.id,
-              user_id: profile.id,
-              name: profile.full_name || profile.email?.split('@')[0] || 'Unknown User',
-              email: profile.email || 'no-email@example.com',
-              phone: '',
-              address: '',
-              emergency_contact: '',
-              join_date: profile.created_at ? profile.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-              status: 'active' as 'active' | 'inactive',
-              created_at: profile.created_at || new Date().toISOString(),
-              updated_at: profile.created_at || new Date().toISOString()
-            }));
-            
-            return membersFromDirect;
-          } else {
-            console.error('Direct API call failed:', response.status, response.statusText);
-            throw new Error(`Direct API call failed: ${response.status} ${response.statusText}`);
-          }
-        } catch (directError) {
-          console.error('Direct API call error:', directError);
-          throw new Error(`All connection methods failed: ${directError}`);
-        }
-      }
-      
-      // Try to fetch profiles data using Supabase client
-      console.log('Attempting to fetch from profiles table...');
+      // Direct fetch from profiles table
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, email, full_name, role, created_at')
         .order('created_at', { ascending: false });
 
       if (profilesError) {
-        console.error('Profiles fetch error:', {
-          message: profilesError.message,
-          code: profilesError.code,
-          details: profilesError.details,
-          hint: profilesError.hint
-        });
-        throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
+        console.error('Profiles fetch error:', profilesError);
+        throw new Error(`Database error: ${profilesError.message}`);
       }
 
-      if (profilesData && profilesData.length > 0) {
-        console.log('Successfully fetched profiles:', profilesData.length);
-        
-        // Convert profiles to member format
-        const membersFromProfiles: Member[] = profilesData.map(profile => ({
-          id: profile.id,
-          user_id: profile.id,
-          name: profile.full_name || profile.email?.split('@')[0] || 'Unknown User',
-          email: profile.email || 'no-email@example.com',
-          phone: '',
-          address: '',
-          emergency_contact: '',
-          join_date: profile.created_at ? profile.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-          status: 'active' as 'active' | 'inactive',
-          created_at: profile.created_at || new Date().toISOString(),
-          updated_at: profile.created_at || new Date().toISOString()
-        }));
-
-        return membersFromProfiles;
+      if (!profilesData || profilesData.length === 0) {
+        console.log('No profiles found in database');
+        return [];
       }
 
-      console.log('No profiles data found');
-      return [];
+      console.log(`Successfully fetched ${profilesData.length} profiles from database`);
       
-    } catch (error) {
-      console.error('Complete failure fetching members:', error);
-      throw error;
+      // Convert profiles to member format
+      const members: Member[] = profilesData.map(profile => ({
+        id: profile.id,
+        user_id: profile.id,
+        name: profile.full_name || profile.email?.split('@')[0] || 'User',
+        email: profile.email || '',
+        phone: '',
+        address: '',
+        emergency_contact: '',
+        join_date: profile.created_at ? profile.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        status: 'active' as 'active' | 'inactive',
+        created_at: profile.created_at || new Date().toISOString(),
+        updated_at: profile.created_at || new Date().toISOString()
+      }));
+
+      return members;
+    } catch (error: any) {
+      console.error('Failed to fetch members:', error);
+      throw new Error(`Failed to load members: ${error.message || 'Unknown error'}`);
     }
   },
 
