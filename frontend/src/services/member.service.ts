@@ -36,13 +36,13 @@ export interface CreateMemberInput {
 export const memberService = {
   async getAll(): Promise<Member[]> {
     console.log('Fetching members using direct REST API...');
-    
+
     // Use direct fetch API instead of Supabase client to bypass any client-side issues
     try {
       const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?select=*&order=created_at.desc`;
-      
+
       console.log('Fetching from:', url);
-      
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
