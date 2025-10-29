@@ -35,41 +35,49 @@ export interface CreateMemberInput {
 
 export const memberService = {
   async getAll(): Promise<Member[]> {
-    console.log('Fetching members from Supabase profiles table...');
+    console.log('=== MEMBER FETCH DEBUG START ===');
+    console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+    console.log('Supabase Key exists:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+    console.log('Supabase Key length:', import.meta.env.VITE_SUPABASE_ANON_KEY?.length);
     
     try {
-      // Add a reasonable timeout to prevent infinite hanging
-      const fetchPromise = supabase
+      console.log('Starting Supabase query...');
+      const startTime = Date.now();
+      
+      // Try the simplest possible query first
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, role, created_at')
-        .order('created_at', { ascending: false });
+        .select('*')
+        .limit(10);
 
-      const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Database query timeout after 15 seconds')), 15000)
-      );
-
-      const { data: profilesData, error: profilesError } = await Promise.race([
-        fetchPromise,
-        timeoutPromise
-      ]) as any;
+      const endTime = Date.now();
+      console.log(`Query completed in ${endTime - startTime}ms`);
 
       if (profilesError) {
-        console.error('Profiles fetch error:', profilesError);
+        console.error('=== SUPABASE ERROR ===');
+        console.error('Error code:', profilesError.code);
+        console.error('Error message:', profilesError.message);
+        console.error('Error details:', profilesError.details);
+        console.error('Error hint:', profilesError.hint);
+        console.error('Full error:', JSON.stringify(profilesError, null, 2));
         
         // Check if it's an RLS policy issue
         if (profilesError.code === 'PGRST301' || profilesError.message?.includes('policy')) {
-          throw new Error('Access denied: Row Level Security policy blocking access. Please check Supabase RLS policies.');
+          throw new Error('RLS Policy Error: The profiles table has Row Level Security enabled but no policy allows this query. Please disable RLS or add a policy that allows SELECT for authenticated users.');
         }
         
-        throw new Error(`Database error: ${profilesError.message}`);
+        throw new Error(`Supabase Error [${profilesError.code}]: ${profilesError.message}`);
       }
 
+      console.log('Query successful!');
+      console.log('Profiles found:', profilesData?.length || 0);
+      
       if (!profilesData || profilesData.length === 0) {
-        console.log('No profiles found in database');
+        console.log('No profiles in database');
         return [];
       }
 
-      console.log(`Successfully fetched ${profilesData.length} profiles from database`);
+      console.log('Sample profile:', profilesData[0]);
       
       // Convert profiles to member format
       const members: Member[] = profilesData.map((profile: any) => ({
@@ -77,19 +85,23 @@ export const memberService = {
         user_id: profile.id,
         name: profile.full_name || profile.email?.split('@')[0] || 'User',
         email: profile.email || '',
-        phone: '',
-        address: '',
-        emergency_contact: '',
+        phone: profile.phone || '',
+        address: profile.address || '',
+        emergency_contact: profile.emergency_contact || '',
         join_date: profile.created_at ? profile.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
         status: 'active' as 'active' | 'inactive',
         created_at: profile.created_at || new Date().toISOString(),
         updated_at: profile.created_at || new Date().toISOString()
       }));
 
+      console.log('=== MEMBER FETCH DEBUG END ===');
       return members;
     } catch (error: any) {
-      console.error('Failed to fetch members:', error);
-      throw new Error(error.message || 'Failed to load members from database');
+      console.error('=== FETCH FAILED ===');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      throw error;
     }
   },
 
