@@ -40,10 +40,10 @@ const sampleMembers: Member[] = [
     phone: '+1 234 567 8900',
     address: '123 Main St, City, State 12345',
     emergency_contact: '+1 234 567 8901',
-    join_date: '2024-01-15',
+    join_date: '2024-10-15',
     status: 'active',
-    created_at: '2024-01-15T10:00:00Z',
-    updated_at: '2024-01-15T10:00:00Z'
+    created_at: '2024-10-15T10:00:00Z',
+    updated_at: '2024-10-15T10:00:00Z'
   },
   {
     id: '2',
@@ -52,10 +52,10 @@ const sampleMembers: Member[] = [
     phone: '+1 234 567 8902',
     address: '456 Oak Ave, City, State 12345',
     emergency_contact: '+1 234 567 8903',
-    join_date: '2024-02-01',
+    join_date: '2024-10-20',
     status: 'active',
-    created_at: '2024-02-01T10:00:00Z',
-    updated_at: '2024-02-01T10:00:00Z'
+    created_at: '2024-10-20T10:00:00Z',
+    updated_at: '2024-10-20T10:00:00Z'
   },
   {
     id: '3',
@@ -64,10 +64,10 @@ const sampleMembers: Member[] = [
     phone: '+1 234 567 8904',
     address: '789 Pine St, City, State 12345',
     emergency_contact: '+1 234 567 8905',
-    join_date: '2024-01-20',
+    join_date: '2024-10-25',
     status: 'inactive',
-    created_at: '2024-01-20T10:00:00Z',
-    updated_at: '2024-01-20T10:00:00Z'
+    created_at: '2024-10-25T10:00:00Z',
+    updated_at: '2024-10-25T10:00:00Z'
   },
   {
     id: '4',
@@ -76,10 +76,10 @@ const sampleMembers: Member[] = [
     phone: '+1 234 567 8906',
     address: '321 Elm St, City, State 12345',
     emergency_contact: '+1 234 567 8907',
-    join_date: '2024-02-10',
+    join_date: '2024-10-28',
     status: 'active',
-    created_at: '2024-02-10T10:00:00Z',
-    updated_at: '2024-02-10T10:00:00Z'
+    created_at: '2024-10-28T10:00:00Z',
+    updated_at: '2024-10-28T10:00:00Z'
   }
 ];
 
