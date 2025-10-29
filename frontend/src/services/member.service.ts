@@ -72,7 +72,7 @@ export const memberService = {
       console.log(`Successfully fetched ${profilesData.length} profiles from database`);
       
       // Convert profiles to member format
-      const members: Member[] = profilesData.map(profile => ({
+      const members: Member[] = profilesData.map((profile: any) => ({
         id: profile.id,
         user_id: profile.id,
         name: profile.full_name || profile.email?.split('@')[0] || 'User',
