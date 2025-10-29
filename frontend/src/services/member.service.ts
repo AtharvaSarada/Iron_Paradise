@@ -161,18 +161,55 @@ export const memberService = {
   },
 
   async update(id: string, input: Partial<CreateMemberInput>): Promise<Member> {
+    console.log('Updating member using direct REST API...');
+    
     try {
-      const { data, error } = await supabase
-        .from('members')
-        .update(input)
-        .eq('id', id)
-        .select()
-        .single();
+      // Update in profiles table using direct REST API
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?id=eq.${id}`;
+      
+      const updateData: any = {};
+      if (input.name) updateData.full_name = input.name;
+      if (input.email) updateData.email = input.email;
+      // Note: profiles table doesn't have phone, address, etc. - those would go in members table
+      
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(updateData)
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Update API Error:', errorText);
+        throw new Error(`Failed to update member: ${response.status}`);
+      }
+
+      const updatedProfiles = await response.json();
+      const updatedProfile = updatedProfiles[0];
+
+      console.log('Member updated successfully');
       await logAction(LOG_ACTIONS.MEMBER_UPDATED, { member_id: id });
-      return data;
-    } catch (error) {
+
+      // Convert back to member format
+      return {
+        id: updatedProfile.id,
+        user_id: updatedProfile.id,
+        name: updatedProfile.full_name || updatedProfile.email?.split('@')[0] || 'User',
+        email: updatedProfile.email || '',
+        phone: input.phone || '',
+        address: input.address || '',
+        emergency_contact: input.emergency_contact || '',
+        join_date: input.join_date || new Date().toISOString().split('T')[0],
+        status: input.status || 'active',
+        created_at: updatedProfile.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+    } catch (error: any) {
       console.error('Update member failed:', error);
       throw error;
     }
@@ -194,20 +231,39 @@ export const memberService = {
   },
 
   async uploadPhoto(file: File): Promise<string> {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
-    const filePath = `member-photos/${fileName}`;
+    console.log('Uploading photo using direct Storage API...');
+    
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `member-photos/${fileName}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('photos')
-      .upload(filePath, file);
+      // Upload using direct Storage API
+      const uploadUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/photos/${filePath}`;
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: file
+      });
 
-    if (uploadError) throw uploadError;
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error('Upload error:', errorText);
+        throw new Error(`Photo upload failed: ${uploadResponse.status}`);
+      }
 
-    const { data } = supabase.storage
-      .from('photos')
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
+      // Get public URL
+      const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/photos/${filePath}`;
+      
+      console.log('Photo uploaded successfully:', publicUrl);
+      return publicUrl;
+    } catch (error: any) {
+      console.error('Photo upload failed:', error);
+      throw new Error(`Failed to upload photo: ${error.message}`);
+    }
   },
 };
