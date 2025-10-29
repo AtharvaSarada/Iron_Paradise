@@ -38,14 +38,29 @@ export const memberService = {
     console.log('Fetching members from Supabase profiles table...');
     
     try {
-      // Direct fetch from profiles table
-      const { data: profilesData, error: profilesError } = await supabase
+      // Add a reasonable timeout to prevent infinite hanging
+      const fetchPromise = supabase
         .from('profiles')
         .select('id, email, full_name, role, created_at')
         .order('created_at', { ascending: false });
 
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Database query timeout after 15 seconds')), 15000)
+      );
+
+      const { data: profilesData, error: profilesError } = await Promise.race([
+        fetchPromise,
+        timeoutPromise
+      ]) as any;
+
       if (profilesError) {
         console.error('Profiles fetch error:', profilesError);
+        
+        // Check if it's an RLS policy issue
+        if (profilesError.code === 'PGRST301' || profilesError.message?.includes('policy')) {
+          throw new Error('Access denied: Row Level Security policy blocking access. Please check Supabase RLS policies.');
+        }
+        
         throw new Error(`Database error: ${profilesError.message}`);
       }
 
@@ -74,7 +89,7 @@ export const memberService = {
       return members;
     } catch (error: any) {
       console.error('Failed to fetch members:', error);
-      throw new Error(`Failed to load members: ${error.message || 'Unknown error'}`);
+      throw new Error(error.message || 'Failed to load members from database');
     }
   },
 
