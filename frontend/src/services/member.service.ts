@@ -48,7 +48,7 @@ const testSupabaseConnection = async () => {
     console.log('Auth session test:', !!session);
     
     // Test 2: Try to access profiles table with minimal query
-    const { data, error, count } = await supabase
+    const { error, count } = await supabase
       .from('profiles')
       .select('id', { count: 'exact', head: true });
     
