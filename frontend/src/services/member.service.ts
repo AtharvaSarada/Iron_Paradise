@@ -86,31 +86,51 @@ const sampleMembers: Member[] = [
 export const memberService = {
   async getAll(): Promise<Member[]> {
     try {
-      console.log('Attempting to fetch members from database...');
+      console.log('Fetching real members from Supabase profiles table...');
       
-      // Add a shorter timeout for faster fallback
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database timeout')), 3000)
-      );
-      
-      const fetchPromise = supabase
+      // First try to get from members table
+      let { data: membersData, error: membersError } = await supabase
         .from('members')
         .select('*')
         .order('created_at', { ascending: false });
 
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
-
-      if (error) {
-        console.error('Member fetch error:', error);
-        console.log('Using sample data as fallback');
-        return sampleMembers;
+      if (membersData && membersData.length > 0) {
+        console.log('Found members in members table:', membersData.length);
+        return membersData;
       }
-      
-      console.log('Successfully fetched members from database:', data?.length || 0);
-      return data || sampleMembers;
+
+      // If no members table data, try profiles table (where your real users are)
+      console.log('No data in members table, fetching from profiles table...');
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (profilesError) {
+        console.error('Profiles fetch error:', profilesError);
+        throw profilesError;
+      }
+
+      // Convert profiles to member format
+      const membersFromProfiles: Member[] = (profilesData || []).map(profile => ({
+        id: profile.id,
+        user_id: profile.id,
+        name: profile.full_name || profile.email.split('@')[0],
+        email: profile.email,
+        phone: profile.phone || '',
+        address: profile.address || '',
+        emergency_contact: profile.emergency_contact || '',
+        join_date: profile.created_at ? profile.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        status: 'active' as 'active' | 'inactive',
+        created_at: profile.created_at || new Date().toISOString(),
+        updated_at: profile.created_at || new Date().toISOString()
+      }));
+
+      console.log('Successfully converted profiles to members:', membersFromProfiles.length);
+      return membersFromProfiles;
     } catch (error) {
-      console.error('Member service error:', error);
-      console.log('Database unavailable, using sample data');
+      console.error('Failed to fetch real members:', error);
+      console.log('Falling back to sample data');
       return sampleMembers;
     }
   },
@@ -129,7 +149,8 @@ export const memberService = {
 
   async create(input: CreateMemberInput): Promise<Member> {
     try {
-      const { data, error } = await supabase
+      // Try to create in members table first
+      const { data: memberData, error: memberError } = await supabase
         .from('members')
         .insert([{
           ...input,
@@ -139,21 +160,45 @@ export const memberService = {
         .select()
         .single();
 
-      if (error) throw error;
-      await logAction(LOG_ACTIONS.MEMBER_CREATED, { member_id: data.id, name: data.name });
-      return data;
-    } catch (error) {
-      console.error('Create member failed, database unavailable:', error);
-      // Return a mock created member for demo purposes
-      const mockMember: Member = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...input,
+      if (memberData) {
+        await logAction(LOG_ACTIONS.MEMBER_CREATED, { member_id: memberData.id, name: memberData.name });
+        return memberData;
+      }
+
+      // If members table doesn't work, create in profiles table
+      console.log('Creating member in profiles table...');
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .insert([{
+          email: input.email,
+          full_name: input.name,
+          role: 'user'
+        }])
+        .select()
+        .single();
+
+      if (profileError) throw profileError;
+
+      // Convert profile to member format
+      const newMember: Member = {
+        id: profileData.id,
+        user_id: profileData.id,
+        name: profileData.full_name || profileData.email.split('@')[0],
+        email: profileData.email,
+        phone: input.phone || '',
+        address: input.address || '',
+        emergency_contact: input.emergency_contact || '',
         join_date: input.join_date || new Date().toISOString().split('T')[0],
         status: input.status || 'active',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        created_at: profileData.created_at || new Date().toISOString(),
+        updated_at: profileData.created_at || new Date().toISOString()
       };
-      return mockMember;
+
+      await logAction(LOG_ACTIONS.MEMBER_CREATED, { member_id: newMember.id, name: newMember.name });
+      return newMember;
+    } catch (error) {
+      console.error('Create member failed:', error);
+      throw error;
     }
   },
 
