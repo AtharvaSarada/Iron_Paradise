@@ -35,50 +35,41 @@ export interface CreateMemberInput {
 
 export const memberService = {
   async getAll(): Promise<Member[]> {
-    console.log('=== MEMBER FETCH DEBUG START ===');
-    console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-    console.log('Supabase Key exists:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
-    console.log('Supabase Key length:', import.meta.env.VITE_SUPABASE_ANON_KEY?.length);
+    console.log('Fetching members using direct REST API...');
     
+    // Use direct fetch API instead of Supabase client to bypass any client-side issues
     try {
-      console.log('Starting Supabase query...');
-      const startTime = Date.now();
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?select=*&order=created_at.desc`;
       
-      // Try the simplest possible query first
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .limit(10);
+      console.log('Fetching from:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        signal: AbortSignal.timeout(10000) // 10 second timeout
+      });
 
-      const endTime = Date.now();
-      console.log(`Query completed in ${endTime - startTime}ms`);
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
 
-      if (profilesError) {
-        console.error('=== SUPABASE ERROR ===');
-        console.error('Error code:', profilesError.code);
-        console.error('Error message:', profilesError.message);
-        console.error('Error details:', profilesError.details);
-        console.error('Error hint:', profilesError.hint);
-        console.error('Full error:', JSON.stringify(profilesError, null, 2));
-        
-        // Check if it's an RLS policy issue
-        if (profilesError.code === 'PGRST301' || profilesError.message?.includes('policy')) {
-          throw new Error('RLS Policy Error: The profiles table has Row Level Security enabled but no policy allows this query. Please disable RLS or add a policy that allows SELECT for authenticated users.');
-        }
-        
-        throw new Error(`Supabase Error [${profilesError.code}]: ${profilesError.message}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', errorText);
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
       }
 
-      console.log('Query successful!');
-      console.log('Profiles found:', profilesData?.length || 0);
-      
+      const profilesData = await response.json();
+      console.log('Profiles fetched:', profilesData.length);
+
       if (!profilesData || profilesData.length === 0) {
-        console.log('No profiles in database');
         return [];
       }
 
-      console.log('Sample profile:', profilesData[0]);
-      
       // Convert profiles to member format
       const members: Member[] = profilesData.map((profile: any) => ({
         id: profile.id,
@@ -94,14 +85,11 @@ export const memberService = {
         updated_at: profile.created_at || new Date().toISOString()
       }));
 
-      console.log('=== MEMBER FETCH DEBUG END ===');
+      console.log('Members converted successfully');
       return members;
     } catch (error: any) {
-      console.error('=== FETCH FAILED ===');
-      console.error('Error type:', error.constructor.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-      throw error;
+      console.error('Failed to fetch members:', error);
+      throw new Error(`Failed to load members: ${error.message}`);
     }
   },
 
