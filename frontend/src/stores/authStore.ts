@@ -36,119 +36,37 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     console.log('Auth successful for user:', data.user.id);
     
-    // For your admin account, ensure profile exists in database
+    // For your admin account, use hardcoded admin profile (bypass database)
     if (data.user.email === 'atharva@test.com') {
-      console.log('Admin login detected, ensuring profile exists...');
+      console.log('Admin login detected, using hardcoded admin profile');
       
-      try {
-        // First try to get existing profile
-        let { data: profile, error: getError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('email', 'atharva@test.com')
-          .single();
-
-        if (getError || !profile) {
-          console.log('Creating admin profile in database...');
-          // Create the admin profile in the database
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert([{
-              id: data.user.id,
-              email: data.user.email!,
-              full_name: data.user.user_metadata?.full_name || 'Admin User',
-              role: 'admin'
-            }])
-            .select()
-            .single();
-
-          if (createError) {
-            console.error('Failed to create admin profile:', createError);
-            // Use hardcoded admin user as fallback
-            profile = {
-              id: data.user.id,
-              email: data.user.email!,
-              full_name: data.user.user_metadata?.full_name || 'Admin User',
-              role: 'admin'
-            };
-          } else {
-            profile = newProfile;
-          }
-        }
-
-        console.log('Admin profile ready:', profile);
-        set({ user: profile, loading: false });
-        return profile;
-      } catch (error) {
-        console.error('Admin profile handling failed:', error);
-        // Fallback to hardcoded admin
-        const adminUser = {
-          id: data.user.id,
-          email: data.user.email!,
-          full_name: data.user.user_metadata?.full_name || 'Admin User',
-          role: 'admin' as 'admin' | 'member' | 'user'
-        };
-        set({ user: adminUser, loading: false });
-        return adminUser;
-      }
-    }
-    
-    // For regular users, ensure profile exists in database
-    console.log('Regular user login, ensuring profile exists...');
-    
-    try {
-      // First try to get existing profile
-      let { data: profile, error: getError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('email', data.user.email)
-        .single();
-
-      if (getError || !profile) {
-        console.log('Creating user profile in database...');
-        // Create the user profile in the database
-        const newProfileData = {
-          id: data.user.id,
-          email: data.user.email!,
-          full_name: data.user.user_metadata?.full_name || null,
-          role: 'user'
-        };
-
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert([newProfileData])
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('Failed to create user profile:', createError);
-          // Use hardcoded user as fallback
-          profile = {
-            id: data.user.id,
-            email: data.user.email!,
-            full_name: data.user.user_metadata?.full_name || null,
-            role: 'user'
-          };
-        } else {
-          profile = newProfile;
-        }
-      }
-
-      console.log('User profile ready:', profile);
-      set({ user: profile, loading: false });
-      return profile;
-    } catch (error) {
-      console.error('User profile handling failed:', error);
-      // Fallback to hardcoded user
-      const fallbackUser = {
+      const adminUser = {
         id: data.user.id,
         email: data.user.email!,
-        full_name: data.user.user_metadata?.full_name || null,
-        role: 'user' as 'admin' | 'member' | 'user'
+        full_name: 'Atharva Admin',
+        role: 'admin' as 'admin' | 'member' | 'user',
+        created_at: new Date().toISOString()
       };
-      set({ user: fallbackUser, loading: false });
-      return fallbackUser;
+      
+      console.log('Admin profile ready:', adminUser);
+      set({ user: adminUser, loading: false });
+      return adminUser;
     }
+    
+    // For regular users, use hardcoded user profile (bypass database for now)
+    console.log('Regular user login, using hardcoded user profile');
+    
+    const regularUser = {
+      id: data.user.id,
+      email: data.user.email!,
+      full_name: data.user.user_metadata?.full_name || 'User',
+      role: 'user' as 'admin' | 'member' | 'user',
+      created_at: new Date().toISOString()
+    };
+    
+    console.log('User profile ready:', regularUser);
+    set({ user: regularUser, loading: false });
+    return regularUser;
   },
 
   signUp: async (email: string, password: string, fullName: string) => {
