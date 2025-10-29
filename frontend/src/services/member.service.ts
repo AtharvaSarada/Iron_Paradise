@@ -89,7 +89,7 @@ export const memberService = {
       console.log('Fetching real members from Supabase profiles table...');
       
       // First try to get from members table
-      let { data: membersData, error: membersError } = await supabase
+      let { data: membersData } = await supabase
         .from('members')
         .select('*')
         .order('created_at', { ascending: false });
@@ -150,7 +150,7 @@ export const memberService = {
   async create(input: CreateMemberInput): Promise<Member> {
     try {
       // Try to create in members table first
-      const { data: memberData, error: memberError } = await supabase
+      const { data: memberData } = await supabase
         .from('members')
         .insert([{
           ...input,
