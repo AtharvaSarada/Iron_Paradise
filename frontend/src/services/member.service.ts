@@ -87,12 +87,17 @@ const sampleMembers: Member[] = [
 const testSupabaseConnection = async () => {
   try {
     console.log('Testing Supabase connection...');
+    console.log('Environment check:', {
+      url: import.meta.env.VITE_SUPABASE_URL,
+      keyExists: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+      keyLength: import.meta.env.VITE_SUPABASE_ANON_KEY?.length
+    });
     
     // Test 1: Simple auth check
     const { data: session } = await supabase.auth.getSession();
     console.log('Auth session test:', !!session);
     
-    // Test 2: Try to access a simple table
+    // Test 2: Try to access profiles table with minimal query
     const { data, error, count } = await supabase
       .from('profiles')
       .select('id', { count: 'exact', head: true });
@@ -100,6 +105,8 @@ const testSupabaseConnection = async () => {
     console.log('Profiles table test:', { 
       success: !error, 
       error: error?.message,
+      errorCode: error?.code,
+      errorDetails: error?.details,
       count 
     });
     
@@ -118,11 +125,49 @@ export const memberService = {
       // First test the connection
       const connectionOk = await testSupabaseConnection();
       if (!connectionOk) {
-        console.log('Connection test failed, using sample data');
+        console.log('Connection test failed, trying direct API approach...');
+        
+        // Try direct REST API call as backup
+        try {
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?select=id,email,full_name,role,created_at&order=created_at.desc`, {
+            headers: {
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const directData = await response.json();
+            console.log('Direct API call successful:', directData.length);
+            
+            const membersFromDirect: Member[] = directData.map((profile: any) => ({
+              id: profile.id,
+              user_id: profile.id,
+              name: profile.full_name || profile.email?.split('@')[0] || 'Unknown User',
+              email: profile.email || 'no-email@example.com',
+              phone: '',
+              address: '',
+              emergency_contact: '',
+              join_date: profile.created_at ? profile.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+              status: 'active' as 'active' | 'inactive',
+              created_at: profile.created_at || new Date().toISOString(),
+              updated_at: profile.created_at || new Date().toISOString()
+            }));
+            
+            return membersFromDirect;
+          } else {
+            console.error('Direct API call failed:', response.status, response.statusText);
+          }
+        } catch (directError) {
+          console.error('Direct API call error:', directError);
+        }
+        
+        console.log('All connection methods failed, using sample data');
         return sampleMembers;
       }
       
-      // Try to fetch profiles data
+      // Try to fetch profiles data using Supabase client
       console.log('Attempting to fetch from profiles table...');
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
@@ -130,8 +175,13 @@ export const memberService = {
         .order('created_at', { ascending: false });
 
       if (profilesError) {
-        console.error('Profiles fetch error:', profilesError);
-        console.log('RLS might be blocking access, using sample data');
+        console.error('Profiles fetch error:', {
+          message: profilesError.message,
+          code: profilesError.code,
+          details: profilesError.details,
+          hint: profilesError.hint
+        });
+        console.log('Using sample data due to fetch error');
         return sampleMembers;
       }
 
