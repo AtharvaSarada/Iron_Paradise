@@ -234,7 +234,27 @@ export const memberService = {
     console.log('Uploading photo to Supabase Storage...');
 
     try {
-      // Skip bucket check for now and try direct upload
+      // Check current user and role first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
+      console.log('Current authenticated user:', user.id);
+      
+      // Check user's role in profiles table
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, email')
+        .eq('id', user.id)
+        .single();
+        
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+      } else {
+        console.log('User profile:', profile);
+      }
+      
       console.log('Attempting direct upload to photos bucket...');
 
       // Validate file type
@@ -258,19 +278,34 @@ export const memberService = {
         throw new Error('User not authenticated');
       }
 
-      // Determine the target user ID for the photo
+      // Try uploading to root first to test basic access
+      const simpleFileName = `test-${Date.now()}.${fileExt}`;
+      console.log('Testing simple upload to root:', simpleFileName);
+      
+      const { data: testData, error: testError } = await supabase.storage
+        .from('photos')
+        .upload(simpleFileName, file, {
+          upsert: true
+        });
+        
+      if (testError) {
+        console.error('Simple upload failed:', testError);
+        throw new Error(`Basic upload test failed: ${testError.message}`);
+      }
+      
+      console.log('Simple upload successful! Now trying with folder structure...');
+      
+      // If simple upload works, try with folder structure
       const photoUserId = targetUserId || user.id;
       const filePath = `member-photos/${photoUserId}/${fileName}`;
 
       console.log('Uploading to path:', filePath);
       console.log('Current user:', user.id, 'Target user:', photoUserId);
 
-      // Try a simple upload first to test basic access
-      console.log('Attempting upload with basic settings...');
       const { data, error } = await supabase.storage
         .from('photos')
         .upload(filePath, file, {
-          upsert: true // Allow overwrite to avoid conflicts
+          upsert: true
         });
 
       if (error) {
