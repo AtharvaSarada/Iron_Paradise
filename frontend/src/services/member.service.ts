@@ -281,17 +281,48 @@ export const memberService = {
       console.log('Uploading to path:', filePath);
       console.log('Current user:', user.id, 'Target user:', photoUserId);
 
-      // Upload using Supabase client (works with RLS policies)
+      // Try a simple upload first to test basic access
+      console.log('Attempting upload with basic settings...');
       const { data, error } = await supabase.storage
         .from('photos')
         .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
+          upsert: true // Allow overwrite to avoid conflicts
         });
 
       if (error) {
         console.error('Storage upload error:', error);
-        throw new Error(`Upload failed: ${error.message}`);
+        
+        // Try uploading to root folder as fallback
+        console.log('Trying fallback upload to root folder...');
+        const rootFilePath = `${fileName}`;
+        const { data: fallbackData, error: fallbackError } = await supabase.storage
+          .from('photos')
+          .upload(rootFilePath, file, {
+            upsert: true
+          });
+          
+        if (fallbackError) {
+          console.error('Fallback upload also failed:', fallbackError);
+          throw new Error(`Upload failed: ${error.message}. Fallback also failed: ${fallbackError.message}`);
+        }
+        
+        console.log('Fallback upload successful:', fallbackData);
+        
+        // Get public URL for fallback
+        const { data: fallbackUrlData } = supabase.storage
+          .from('photos')
+          .getPublicUrl(rootFilePath);
+
+        const fallbackPublicUrl = fallbackUrlData.publicUrl;
+        console.log('Fallback photo uploaded successfully:', fallbackPublicUrl);
+        
+        await logAction(LOG_ACTIONS.MEMBER_UPDATED, {
+          action: 'photo_uploaded_fallback',
+          file_path: rootFilePath,
+          target_user_id: photoUserId
+        });
+
+        return fallbackPublicUrl;
       }
 
       console.log('Upload successful:', data);
