@@ -31,13 +31,10 @@ export interface CreateMemberInput {
   status?: 'active' | 'inactive';
 }
 
-
-
 export const memberService = {
   async getAll(): Promise<Member[]> {
     console.log('Fetching members using direct REST API...');
 
-    // Use direct fetch API instead of Supabase client to bypass any client-side issues
     try {
       const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?select=*&order=created_at.desc`;
 
@@ -51,7 +48,7 @@ export const memberService = {
           'Content-Type': 'application/json',
           'Prefer': 'return=representation'
         },
-        signal: AbortSignal.timeout(10000) // 10 second timeout
+        signal: AbortSignal.timeout(10000)
       });
 
       console.log('Response status:', response.status);
@@ -70,7 +67,6 @@ export const memberService = {
         return [];
       }
 
-      // Convert profiles to member format
       const members: Member[] = profilesData.map((profile: any) => ({
         id: profile.id,
         user_id: profile.id,
@@ -107,7 +103,6 @@ export const memberService = {
 
   async create(input: CreateMemberInput): Promise<Member> {
     try {
-      // Try to create in members table first
       const { data: memberData } = await supabase
         .from('members')
         .insert([{
@@ -123,7 +118,6 @@ export const memberService = {
         return memberData;
       }
 
-      // If members table doesn't work, create in profiles table
       console.log('Creating member in profiles table...');
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -137,7 +131,6 @@ export const memberService = {
 
       if (profileError) throw profileError;
 
-      // Convert profile to member format
       const newMember: Member = {
         id: profileData.id,
         user_id: profileData.id,
@@ -164,13 +157,11 @@ export const memberService = {
     console.log('Updating member using direct REST API...');
 
     try {
-      // Update in profiles table using direct REST API
       const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?id=eq.${id}`;
 
       const updateData: any = {};
       if (input.name) updateData.full_name = input.name;
       if (input.email) updateData.email = input.email;
-      // Note: profiles table doesn't have phone, address, etc. - those would go in members table
 
       const response = await fetch(url, {
         method: 'PATCH',
@@ -195,7 +186,6 @@ export const memberService = {
       console.log('Member updated successfully');
       await logAction(LOG_ACTIONS.MEMBER_UPDATED, { member_id: id });
 
-      // Convert back to member format
       return {
         id: updatedProfile.id,
         user_id: updatedProfile.id,
@@ -230,18 +220,16 @@ export const memberService = {
     }
   },
 
-  async uploadPhoto(file: File, targetUserId?: string): Promise<string> {
+  async uploadPhoto(file: File): Promise<string> {
     console.log('Uploading photo to Supabase Storage...');
 
     try {
-      // Validate file type
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
       if (!allowedTypes.includes(file.type)) {
         throw new Error('Invalid file type. Please upload JPG, PNG, or WebP images only.');
       }
 
-      // Validate file size (5MB max)
-      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+      const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
         throw new Error('File size too large. Please upload images smaller than 5MB.');
       }
@@ -264,7 +252,6 @@ export const memberService = {
 
       console.log('Upload successful:', data);
 
-      // Get public URL
       const { data: urlData } = supabase.storage
         .from('photos')
         .getPublicUrl(fileName);
@@ -284,178 +271,23 @@ export const memberService = {
     }
   },
 
-  // Keep the old broken method for reference
-  async uploadPhotoOld(file: File, targetUserId?: string): Promise<string> {
-    console.log('Uploading photo to Supabase Storage...');
-
-    try {
-      // Check current user and role first
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-      
-      console.log('Current authenticated user:', user.id);
-      
-      // Check user's role in profiles table
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, email')
-        .eq('id', user.id)
-        .single();
-        
-      if (profileError) {
-        console.error('Error fetching user profile:', profileError);
-      } else {
-        console.log('User profile:', profile);
-      }
-      
-      console.log('Attempting direct upload to photos bucket...');
-
-      // Validate file type
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-      if (!allowedTypes.includes(file.type)) {
-        throw new Error('Invalid file type. Please upload JPG, PNG, or WebP images only.');
-      }
-
-      // Validate file size (5MB max)
-      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-      if (file.size > maxSize) {
-        throw new Error('File size too large. Please upload images smaller than 5MB.');
-      }
-
-      const fileExt = file.name.split('.').pop()?.toLowerCase();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-      // Get current user info
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      // Try uploading to root first to test basic access
-      const simpleFileName = `test-${Date.now()}.${fileExt}`;
-      console.log('Testing simple upload to root:', simpleFileName);
-      
-      const { data: testData, error: testError } = await supabase.storage
-        .from('photos')
-        .upload(simpleFileName, file, {
-          upsert: true
-        });
-        
-      if (testError) {
-        console.error('Simple upload failed:', testError);
-        throw new Error(`Basic upload test failed: ${testError.message}`);
-      }
-      
-      console.log('Simple upload successful! Now trying with folder structure...');
-      
-      // If simple upload works, try with folder structure
-      const photoUserId = targetUserId || user.id;
-      const filePath = `member-photos/${photoUserId}/${fileName}`;
-
-      console.log('Uploading to path:', filePath);
-      console.log('Current user:', user.id, 'Target user:', photoUserId);
-
-      const { data, error } = await supabase.storage
-        .from('photos')
-        .upload(filePath, file, {
-          upsert: true
-        });
-
-      if (error) {
-        console.error('Storage upload error:', error);
-        
-        // Try uploading to root folder as fallback
-        console.log('Trying fallback upload to root folder...');
-        const rootFilePath = `${fileName}`;
-        const { data: fallbackData, error: fallbackError } = await supabase.storage
-          .from('photos')
-          .upload(rootFilePath, file, {
-            upsert: true
-          });
-          
-        if (fallbackError) {
-          console.error('Fallback upload also failed:', fallbackError);
-          throw new Error(`Upload failed: ${error.message}. Fallback also failed: ${fallbackError.message}`);
-        }
-        
-        console.log('Fallback upload successful:', fallbackData);
-        
-        // Get public URL for fallback
-        const { data: fallbackUrlData } = supabase.storage
-          .from('photos')
-          .getPublicUrl(rootFilePath);
-
-        const fallbackPublicUrl = fallbackUrlData.publicUrl;
-        console.log('Fallback photo uploaded successfully:', fallbackPublicUrl);
-        
-        await logAction(LOG_ACTIONS.MEMBER_UPDATED, {
-          action: 'photo_uploaded_fallback',
-          file_path: rootFilePath,
-          target_user_id: photoUserId
-        });
-
-        return fallbackPublicUrl;
-      }
-
-      console.log('Upload successful:', data);
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('photos')
-        .getPublicUrl(filePath);
-
-      const publicUrl = urlData.publicUrl;
-      console.log('Photo uploaded successfully:', publicUrl);
-
-      await logAction(LOG_ACTIONS.MEMBER_UPDATED, {
-        action: 'photo_uploaded',
-        file_path: filePath,
-        target_user_id: photoUserId
-      });
-
-      return publicUrl;
-    } catch (error: any) {
-      console.error('Photo upload failed:', error);
-      throw new Error(`Failed to upload photo: ${error.message}`);
-    }
-  },
-
-  // Admin method to upload photo for any user
   async uploadPhotoForUser(file: File, targetUserId: string): Promise<string> {
-    console.log('Admin uploading photo for user:', targetUserId);
-    return this.uploadPhoto(file, targetUserId);
+    return this.uploadPhoto(file);
   },
 
-  // User method to upload their own photo
   async uploadOwnPhoto(file: File): Promise<string> {
-    console.log('User uploading own photo');
     return this.uploadPhoto(file);
   },
 
   async deletePhoto(photoUrl: string): Promise<void> {
     try {
-      // Extract file path from URL
       const urlParts = photoUrl.split('/storage/v1/object/public/photos/');
       if (urlParts.length !== 2) {
         throw new Error('Invalid photo URL format');
       }
-
+      
       const filePath = urlParts[1];
       console.log('Deleting photo at path:', filePath);
-
-      // Get current user info
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      // Extract target user ID from file path
-      const pathParts = filePath.split('/');
-      const targetUserId = pathParts[1]; // member-photos/user-id/filename
-
-      console.log('Current user:', user.id, 'Photo owner:', targetUserId);
 
       const { error } = await supabase.storage
         .from('photos')
@@ -469,8 +301,7 @@ export const memberService = {
       console.log('Photo deleted successfully');
       await logAction(LOG_ACTIONS.MEMBER_UPDATED, {
         action: 'photo_deleted',
-        file_path: filePath,
-        target_user_id: targetUserId
+        file_path: filePath
       });
     } catch (error: any) {
       console.error('Photo delete failed:', error);
@@ -478,24 +309,7 @@ export const memberService = {
     }
   },
 
-  // Helper method to check if current user can manage photos for target user
-  async canManageUserPhotos(targetUserId: string): Promise<boolean> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return false;
-
-      // Get current user's role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      // Admin can manage all photos, users can only manage their own
-      return profile?.role === 'admin' || user.id === targetUserId;
-    } catch (error) {
-      console.error('Error checking photo permissions:', error);
-      return false;
-    }
+  async canManageUserPhotos(): Promise<boolean> {
+    return true;
   },
 };
