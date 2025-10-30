@@ -234,24 +234,8 @@ export const memberService = {
     console.log('Uploading photo to Supabase Storage...');
 
     try {
-      // First, check if storage is accessible
-      console.log('Checking storage buckets...');
-      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-      
-      if (bucketsError) {
-        console.error('Error listing buckets:', bucketsError);
-        throw new Error(`Storage not accessible: ${bucketsError.message}`);
-      }
-      
-      console.log('Available buckets:', buckets?.map(b => b.name) || []);
-      
-      const photosBucket = buckets?.find(b => b.name === 'photos');
-      if (!photosBucket) {
-        console.error('Photos bucket not found! Available buckets:', buckets?.map(b => b.name));
-        throw new Error('Photos bucket does not exist. Please create it in Supabase Dashboard > Storage');
-      }
-      
-      console.log('Photos bucket found:', photosBucket);
+      // Skip bucket check for now and try direct upload
+      console.log('Attempting direct upload to photos bucket...');
 
       // Validate file type
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];

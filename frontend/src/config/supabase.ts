@@ -40,3 +40,19 @@ console.log('Supabase client created successfully');
     console.error('Supabase connection test error:', err);
   }
 })();
+
+// Test storage connection
+(async () => {
+  try {
+    console.log('Testing storage connection...');
+    const { data: buckets, error } = await supabase.storage.listBuckets();
+    if (error) {
+      console.error('Storage connection test failed:', error);
+      console.error('Storage URL would be:', `${supabaseUrl}/storage/v1`);
+    } else {
+      console.log('Storage connection test successful. Buckets:', buckets?.map(b => b.name));
+    }
+  } catch (err) {
+    console.error('Storage connection test error:', err);
+  }
+})();
