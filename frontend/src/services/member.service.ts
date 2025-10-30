@@ -162,16 +162,16 @@ export const memberService = {
 
   async update(id: string, input: Partial<CreateMemberInput>): Promise<Member> {
     console.log('Updating member using direct REST API...');
-    
+
     try {
       // Update in profiles table using direct REST API
       const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?id=eq.${id}`;
-      
+
       const updateData: any = {};
       if (input.name) updateData.full_name = input.name;
       if (input.email) updateData.email = input.email;
       // Note: profiles table doesn't have phone, address, etc. - those would go in members table
-      
+
       const response = await fetch(url, {
         method: 'PATCH',
         headers: {
@@ -230,40 +230,148 @@ export const memberService = {
     }
   },
 
-  async uploadPhoto(file: File): Promise<string> {
-    console.log('Uploading photo using direct Storage API...');
-    
+  async uploadPhoto(file: File, targetUserId?: string): Promise<string> {
+    console.log('Uploading photo to Supabase Storage...');
+
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `member-photos/${fileName}`;
-
-      // Upload using direct Storage API
-      const uploadUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/photos/${filePath}`;
-      
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: {
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: file
-      });
-
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        console.error('Upload error:', errorText);
-        throw new Error(`Photo upload failed: ${uploadResponse.status}`);
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error('Invalid file type. Please upload JPG, PNG, or WebP images only.');
       }
 
+      // Validate file size (5MB max)
+      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+      if (file.size > maxSize) {
+        throw new Error('File size too large. Please upload images smaller than 5MB.');
+      }
+
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+      // Get current user info
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Determine the target user ID for the photo
+      const photoUserId = targetUserId || user.id;
+      const filePath = `member-photos/${photoUserId}/${fileName}`;
+
+      console.log('Uploading to path:', filePath);
+      console.log('Current user:', user.id, 'Target user:', photoUserId);
+
+      // Upload using Supabase client (works with RLS policies)
+      const { data, error } = await supabase.storage
+        .from('photos')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('Storage upload error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
+
+      console.log('Upload successful:', data);
+
       // Get public URL
-      const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/photos/${filePath}`;
-      
+      const { data: urlData } = supabase.storage
+        .from('photos')
+        .getPublicUrl(filePath);
+
+      const publicUrl = urlData.publicUrl;
       console.log('Photo uploaded successfully:', publicUrl);
+
+      await logAction(LOG_ACTIONS.MEMBER_UPDATED, {
+        action: 'photo_uploaded',
+        file_path: filePath,
+        target_user_id: photoUserId
+      });
+
       return publicUrl;
     } catch (error: any) {
       console.error('Photo upload failed:', error);
       throw new Error(`Failed to upload photo: ${error.message}`);
+    }
+  },
+
+  // Admin method to upload photo for any user
+  async uploadPhotoForUser(file: File, targetUserId: string): Promise<string> {
+    console.log('Admin uploading photo for user:', targetUserId);
+    return this.uploadPhoto(file, targetUserId);
+  },
+
+  // User method to upload their own photo
+  async uploadOwnPhoto(file: File): Promise<string> {
+    console.log('User uploading own photo');
+    return this.uploadPhoto(file);
+  },
+
+  async deletePhoto(photoUrl: string): Promise<void> {
+    try {
+      // Extract file path from URL
+      const urlParts = photoUrl.split('/storage/v1/object/public/photos/');
+      if (urlParts.length !== 2) {
+        throw new Error('Invalid photo URL format');
+      }
+
+      const filePath = urlParts[1];
+      console.log('Deleting photo at path:', filePath);
+
+      // Get current user info
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Extract target user ID from file path
+      const pathParts = filePath.split('/');
+      const targetUserId = pathParts[1]; // member-photos/user-id/filename
+
+      console.log('Current user:', user.id, 'Photo owner:', targetUserId);
+
+      const { error } = await supabase.storage
+        .from('photos')
+        .remove([filePath]);
+
+      if (error) {
+        console.error('Storage delete error:', error);
+        throw new Error(`Delete failed: ${error.message}`);
+      }
+
+      console.log('Photo deleted successfully');
+      await logAction(LOG_ACTIONS.MEMBER_UPDATED, {
+        action: 'photo_deleted',
+        file_path: filePath,
+        target_user_id: targetUserId
+      });
+    } catch (error: any) {
+      console.error('Photo delete failed:', error);
+      throw new Error(`Failed to delete photo: ${error.message}`);
+    }
+  },
+
+  // Helper method to check if current user can manage photos for target user
+  async canManageUserPhotos(targetUserId: string): Promise<boolean> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      // Get current user's role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      // Admin can manage all photos, users can only manage their own
+      return profile?.role === 'admin' || user.id === targetUserId;
+    } catch (error) {
+      console.error('Error checking photo permissions:', error);
+      return false;
     }
   },
 };
