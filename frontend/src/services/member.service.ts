@@ -271,7 +271,7 @@ export const memberService = {
     }
   },
 
-  async uploadPhotoForUser(file: File, targetUserId: string): Promise<string> {
+  async uploadPhotoForUser(file: File, _targetUserId: string): Promise<string> {
     return this.uploadPhoto(file);
   },
 
