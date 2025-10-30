@@ -234,6 +234,61 @@ export const memberService = {
     console.log('Uploading photo to Supabase Storage...');
 
     try {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error('Invalid file type. Please upload JPG, PNG, or WebP images only.');
+      }
+
+      // Validate file size (5MB max)
+      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+      if (file.size > maxSize) {
+        throw new Error('File size too large. Please upload images smaller than 5MB.');
+      }
+
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+      console.log('Uploading file:', fileName);
+      
+      const { data, error } = await supabase.storage
+        .from('photos')
+        .upload(fileName, file, {
+          upsert: true
+        });
+
+      if (error) {
+        console.error('Storage upload error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
+
+      console.log('Upload successful:', data);
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('photos')
+        .getPublicUrl(fileName);
+
+      const publicUrl = urlData.publicUrl;
+      console.log('Photo uploaded successfully:', publicUrl);
+
+      await logAction(LOG_ACTIONS.MEMBER_UPDATED, {
+        action: 'photo_uploaded',
+        file_path: fileName
+      });
+
+      return publicUrl;
+    } catch (error: any) {
+      console.error('Photo upload failed:', error);
+      throw new Error(`Failed to upload photo: ${error.message}`);
+    }
+  },
+
+  // Keep the old broken method for reference
+  async uploadPhotoOld(file: File, targetUserId?: string): Promise<string> {
+    console.log('Uploading photo to Supabase Storage...');
+
+    try {
       // Check current user and role first
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
